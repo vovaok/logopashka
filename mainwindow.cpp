@@ -10,7 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("Robot");
-//    showFullScreen();
+    showFullScreen();
 
     mLoopCount = 0;
 
@@ -251,6 +251,8 @@ void MainWindow::step()
 
     execLine(mScriptIndex);
 
+    qDebug() << "line #" << mScriptIndex << "loopcount:" << mLoopCount << "start:" << mLoopStartLine << "end:" << mLoopEndLine;
+
     if (mLoopCount)
     {
         if (mScriptIndex == mLoopEndLine)
@@ -299,7 +301,7 @@ bool MainWindow::parseLine(QString line)
     QRegExp rx;
     mProcessing = false;
 
-    rx = QRegExp("^[\\[\\(\\{)](.*)$");
+    rx = QRegExp("^[\\[\\(\\{](.*)$");
     if (line.indexOf(rx) != -1)
     {
         mLoopStartLine = mScriptIndex;
@@ -345,7 +347,7 @@ bool MainWindow::parseLine(QString line)
         {
             mLoopCount = value;
             mLoopStartLine = mScriptIndex + 1;
-            mLoopEndLine = mLoopStartLine;
+            mLoopEndLine = -1;// mLoopStartLine;
             mProcessing = false;
         }
         else if (cmd == "ВПЕРЕД")
