@@ -1,0 +1,192 @@
+* {
+ font-size: 23pt;
+/* font-family: 'Zekton Rg';*/
+/* color: rgb(0, 31, 57);*/
+}
+MainWindow
+{
+/* background-image: url(':/back.jpg');*/
+/* background-position: center left;*/
+ border-image: url(':/back.jpg') 0 0 0 0 repeat repeat;
+}
+QLabel
+{
+    color: black;
+}
+QPlainTextEdit, QTextEdit
+{
+/*    font-size: 32pt;*/
+    font-family: Consolas;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 3px solid white;
+    border-radius: .5em;
+    padding: .5em;
+}
+/*QToolTip {
+ border-radius: 2px;
+ font-size: 10pt;
+ background: qlineargradient( x1:0 y1:1, x2:0 y2:0, stop:0 #007DE7, stop:1 white);
+ opacity: 230;
+}*/
+QGroupBox {
+ border: 3px solid white;
+ border-radius: .3em;
+ margin-top: .45em;
+ font-size: 12pt;
+}
+QGroupBox::title {
+ background-color: white;
+ border-radius: .25em;
+ subcontrol-origin: margin;
+ subcontrol-position: top center;
+ padding: 0 3px;
+}
+QPushButton {
+ background-color: rgba($color2, 0.8);
+ border: 3px solid white;
+ border-radius: .5em;
+ height: 2em;
+ min-width: 10em;
+}
+QPushButton:hover {
+ background-color: rgba($color2, 0.9);
+}
+QPushButton:pressed {
+ background-color: rgba($color1, 1.0);
+}
+QPushButton:checked {
+ background-color: rgba($color1, 1.0);
+}
+QPushButton:disabled {
+ color: white;
+ border: none;
+}
+QLineEdit {
+ background-color: white;
+ border: 3px solid white;
+ color: rgb(0, 31, 57);
+ border-radius: .25em;
+ height: 1em;
+ max-width: 4em;
+}
+/*QSpinBox {
+ background-color: white;
+ border: 3px solid white;
+ color: rgb(0, 31, 57);
+ height: 2em;
+ min-width: 3em;
+ margin-left: 30px;
+ margin-right: 30px;
+ padding-left: -30px;
+ padding-right: -30px;
+}
+QSpinBox::up-button {
+    subcontrol-origin: margin;
+    subcontrol-position: right;
+    width: 27px;
+    height: 50%;
+    background-color: rgba($color2, 0.4);
+    border-right: 3px solid white;
+    border-top: 3px solid white;
+    border-bottom: 3px solid white;
+    border-top-right-radius: 1em;
+    border-bottom-right-radius: 1em;
+}
+QSpinBox::up-button:hover {
+ background-color: rgba($color2, 0.8);
+}
+QSpinBox::up-button:pressed {
+ background-color: rgba($color1, 1.0);
+}
+QSpinBox::up-arrow {
+    image: url(:/pic/plus.png);
+}
+QSpinBox::down-button {
+    subcontrol-origin: margin;
+    subcontrol-position: left;
+    width: 27px;
+    height: 50%;
+    background-color: rgba($color2, 0.4);
+    border-left: 3px solid white;
+    border-top: 3px solid white;
+    border-bottom: 3px solid white;
+    border-top-left-radius: 1em;
+    border-bottom-left-radius: 1em;
+}
+QSpinBox::down-button:hover {
+ background-color: rgba($color2, 0.8);
+}
+QSpinBox::down-button:pressed {
+ background-color: rgba($color1, 1.0);
+}
+QSpinBox::down-arrow {
+    image: url(:/pic/minus.png);
+}*/
+
+QSlider:horizontal {
+ min-height: 2.3em;
+}
+QSlider::groove:horizontal {
+ border: 2px solid white;
+ height: .1em;
+ background: rgba($color1, 1.0);
+ margin: 1em 0;
+ border-radius: .1em;
+}
+QSlider::handle:horizontal {
+ background: rgba($color1, 1.0);
+ width: 2em;
+ margin: -0.5em 0;
+ border: 2px solid white;
+ border-radius: 0.5em;
+}
+QSlider::handle:horizontal:disabled {
+ background: rgba($color1, 0.0);
+/* border: none;*/
+}
+
+/*QSlider::sub-page:horizontal {
+ height: .7em;
+ background: rgba(0, 125, 231, 1.0);
+ margin: 1em 0;
+ border: 1px solid white;
+ border-radius: .34em;
+}*/
+/*QProgressBar {
+ background: rgba($color2, 0.4);
+ border: 3px solid white;
+ border-radius: .5em;
+ text-align: center;
+ width: 2em;
+}
+QProgressBar:chunk {
+}*/
+
+/*QSlider:vertical {
+ min-width: 2em;
+}
+QSlider::groove:vertical {
+ border: .3em solid white;
+ width: .1em;
+ background: rgba(0, 125, 231, 1.0);
+ margin: 0 1em;
+ border-radius: .34em;
+}
+QSlider::handle:vertical {
+ background: rgba(0, 125, 231, 1.0);
+ height: 1.8em;
+ margin: 0 -1em;
+ border: 1px solid white;
+ border-radius: 0.9em;
+}
+QSlider::handle:vertical:disabled {
+ background: rgba(0, 125, 231, 0.0);
+ border: none;
+}
+QSlider::sub-page:vertical {
+ width: .7em;
+ background: rgba(0, 125, 231, 1.0);
+ margin: 0 1em;
+ border: 1px solid white;
+ border-radius: .34em;
+}*/
