@@ -6,11 +6,14 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow),
       mScriptIndex(-1),
       mProcessing(false),
-      mDebug(false)
+      mDebug(false),
+      mSpacer(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("Robot");
     showFullScreen();
+
+    setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
     mLoopCount = 0;
 
@@ -20,7 +23,8 @@ MainWindow::MainWindow(QWidget *parent)
     css.replace("$color1", "139, 237, 139");
     css.replace("$color2", "139, 227, 237");
     styleFile.close();
-    setStyleSheet(css);
+    setStyleSheet(css);   
+
 
 //    #ifdef Q_OS_WIN
 //    joy3D = new SpaceMouse(this);
@@ -40,6 +44,9 @@ MainWindow::MainWindow(QWidget *parent)
     device = new Robot();
     oviMaster->registerDevice(device, 13);
 
+    connLed = new Led(QColor(139, 237, 139));
+    connLed->setFixedSize(50, 50);
+    ui->statusbar->addWidget(connLed);
     connlabel = new QLabel("disconnected");
     ui->statusbar->addWidget(connlabel);
 
@@ -48,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     enableBtn = new QPushButton("Enable");
     enableBtn->setCheckable(true);
-    connect(enableBtn, &QPushButton::clicked, [=](bool checked)
+    connect(enableBtn, &QPushButton::toggled, [=](bool checked)
     {
         device->setEnabled(checked);
     });
@@ -59,96 +66,52 @@ MainWindow::MainWindow(QWidget *parent)
     joy->setMinimumSize(300, 300);
     joy->resize(600, 600);
 
-//    QGroupBox *joyBox = new QGroupBox;
-//    QVBoxLayout *jlay = new QVBoxLayout;
-//    joyBox->setLayout(jlay);
+
+    mProgramLayout = new QVBoxLayout;
+
 
     editor = new CodeEditor;
-
+    editor->viewport()->setCursor(QCursor(QPixmap::fromImage(QImage(":/ibeam.png"))));
+    editor->setCursorWidth(3);
 
     QPushButton *btnPlay = new QPushButton("RUN");
+    btnPlay->setShortcut(QKeySequence("Ctrl+R"));
     connect(btnPlay, &QPushButton::clicked, this, &MainWindow::run);
 
-//    QPushButton *btnSave = new QPushButton("Save");
-//    connect(btnSave, &QPushButton::clicked, [=]()
-//    {
-//        QString fname = QFileDialog::getSaveFileName(0L, "", "", "*.csv");
-//        if (!fname.isEmpty())
-//        {
-//            QFile f(fname);
-//            f.open(QIODevice::WriteOnly);
-//            for (int j=0; j<mScriptTable->rowCount(); j++)
-//            {
-//                for (int i=0; i<8; i++)
-//                {
-//                    f.write(mScriptTable->item(j, i)->text().toUtf8());
-//                    f.write(";");
-//                }
-//                f.write("\n");
-//            }
-//            f.close();
-//        }
-//    });
+    QPushButton *btnSave = new QPushButton("Save");
+    btnSave->setStyleSheet("min-width: 4em;");
+    btnSave->setShortcut(QKeySequence("Ctrl+S"));
+    connect(btnSave, &QPushButton::clicked, this, &MainWindow::save);
 
-//    QPushButton *btnLoad = new QPushButton("Load");
-//    connect(btnLoad, &QPushButton::clicked, [=]()
-//    {
-//        QString fname = QFileDialog::getOpenFileName(0L, "", "", "*.csv");
-//        if (!fname.isEmpty())
-//        {
-//            mScriptTable->clearContents();
-//            QFile f(fname);
-//            f.open(QIODevice::ReadOnly);
-//            QString line;
-//            do
-//            {
-//                line = f.readLine().trimmed();
-//                if (line.isEmpty())
-//                    break;
-//                QStringList s = line.split(";");
-//                int idx = mScriptTable->rowCount();
-//                mScriptTable->insertRow(idx);
-//                for (int i=0; i<8; i++)
-//                {
-//                    if (i >= s.size())
-//                        break;
-//                    mScriptTable->setItem(idx, i, new QTableWidgetItem(s[i].trimmed()));
-//                }
-//            }
-//            while (!line.isEmpty());
-//            f.close();
-//        }
-//    });
+    QPushButton *btnClose = new QPushButton("X");//"×");
+    btnClose->setObjectName("closeButton");
+    connect(btnClose, &QPushButton::clicked, this, &MainWindow::close);
 
-
-    QGroupBox *scriptBox = new QGroupBox();
-    QGridLayout *scriptLay = new QGridLayout;
-    scriptBox->setLayout(scriptLay);
-    scriptLay->addWidget(editor, 0, 0, 4, 1);
-    scriptLay->addWidget(btnPlay, 0, 1);
-    scriptLay->addWidget(stopBtn, 1, 1);
-    scriptLay->addWidget(joy, 2, 1);
-    scriptLay->addWidget(enableBtn, 3, 1);
-//    scriptLay->addWidget(btnLoad, 0, 3);
-//    scriptLay->addWidget(btnSave, 0, 4);
-//    scriptLay->addWidget(mScriptTable, 1, 0, 1, 5);
 
     stack = new QStackedWidget;
-//    stack->addWidget(ctrlBox);
-    stack->addWidget(scriptBox);
+    stack->addWidget(editor);
 
-//    QPushButton *scriptBtn = new QPushButton("script");
-//    connect(scriptBtn, &QPushButton::clicked, [=]()
-//    {
-//        stack->setCurrentIndex(1 - stack->currentIndex());
-//    });
+    QHBoxLayout *btnLay = new QHBoxLayout;
+    btnLay->addWidget(btnSave);
+//    btnLay->addStretch(1);
+    btnLay->addWidget(btnClose);
 
-    QHBoxLayout *lay = new QHBoxLayout;
-//    lay->addWidget(scriptBtn);
-    lay->addWidget(stack, 1);
-//    lay->addWidget(joyBox, 0);
+    QVBoxLayout *controlLay = new QVBoxLayout;
+    controlLay->addWidget(btnPlay);
+    controlLay->addWidget(stopBtn);
+    controlLay->addWidget(joy, 1);
+    controlLay->addWidget(enableBtn);
+
+    QGridLayout *lay = new QGridLayout;
+    lay->setSpacing(12);
+    lay->addLayout(mProgramLayout, 0, 0, 2, 1);
+    lay->addLayout(btnLay, 0, 2);
+    lay->addWidget(stack, 0, 1, 2, 1);
+    lay->addLayout(controlLay, 1, 2);
 
     ui->centralwidget->setLayout(lay);
+
+    listPrograms();
 
     connect(device, &Robot::commandCompleted, [=]()
     {
@@ -167,10 +130,21 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+    stop();
+    save();
+}
+
 void MainWindow::keyPressEvent(QKeyEvent *e)
 {
-    if ((e->modifiers() & Qt::ControlModifier) && e->key() == Qt::Key_R)
-        run();
+    if ((e->modifiers() & Qt::ControlModifier))
+    {
+//        if (e->key() == Qt::Key_R)
+//            run();
+//        else if (e->key() == Qt::Key_S)
+//            save();
+    }
     else if (e->key() == Qt::Key_F5)
     {
         if (!isRunning())
@@ -183,6 +157,7 @@ void MainWindow::keyPressEvent(QKeyEvent *e)
         step();
         mDebug = true;
     }
+
 }
 
 void MainWindow::onTimer()
@@ -225,7 +200,9 @@ void MainWindow::onTimer()
         device->setControl(v*3, w*3);
     }
 
-    if (device->isValid())
+    bool conn = device->isValid() && device->isPresent();
+    connLed->setState(conn);
+    if (conn)
         connlabel->setText("connected");
     else
         connlabel->setText("disconnected");
@@ -234,8 +211,12 @@ void MainWindow::onTimer()
 void MainWindow::run()
 {
     editor->setReadOnly(true);
+    for (QPushButton *btn: mProgramBtns)
+        btn->setEnabled(false);
     mScript = editor->toPlainText().split('\n');
     mDebug = false;
+    if (!device->isEnabled())
+        enableBtn->setChecked(true);
     execLine(0);
 }
 
@@ -270,7 +251,107 @@ void MainWindow::stop()
     mScriptIndex = -1;
     editor->highlightLine(-1);
     device->stop();
+    enableBtn->setChecked(false);
     editor->setReadOnly(false);
+    for (QPushButton *btn: mProgramBtns)
+        btn->setEnabled(true);
+}
+
+void MainWindow::listPrograms()
+{
+    QDir dir;
+    if (!dir.exists("programs"))
+        dir.mkdir("programs");
+    dir.cd("programs");
+    QFile mainFile("programs/main.txt");
+    if (!mainFile.exists())
+    {
+        mainFile.open(QIODevice::WriteOnly);
+        mainFile.write("");
+        mainFile.close();
+    }
+    QStringList filters;
+    filters << "*.txt";
+    QFileInfoList files = dir.entryInfoList(filters, QDir::Files, QDir::Name);
+
+    if (!mSpacer)
+        mSpacer = new QLabel;
+
+    for (QPushButton *btn: mProgramBtns)
+    {
+        mProgramLayout->removeWidget(btn);
+        btn->deleteLater();
+    }
+    mProgramBtns.clear();
+    mPrograms.clear();
+
+    for (QFileInfo &file: files)
+    {
+        QString programName = file.baseName();
+        QPushButton *btn = new QPushButton(programName);
+        btn->setCheckable(true);
+        btn->setAutoExclusive(true);
+        connect(btn, &QPushButton::clicked, [=]()
+        {
+            save();
+            load(programName);
+        });
+        mProgramBtns[programName] = btn;
+        mProgramLayout->addWidget(btn);
+    }
+    if (mProgramBtns.contains(mProgramName))
+        mProgramBtns[mProgramName]->setChecked(true);
+    mProgramLayout->addWidget(mSpacer, 100);
+
+    if (mProgramName.isEmpty())
+        load("main");
+}
+
+void MainWindow::save()
+{
+    QString text = editor->toPlainText();
+    QString firstLine = text.split("\n").first().trimmed();
+    QRegExp rx("^(\\w+):$", Qt::CaseInsensitive);
+    if (firstLine.indexOf(rx) != -1)
+    {
+        mProgramName = rx.cap(1);
+    }
+
+    if (mProgramName.isEmpty())
+        mProgramName = "main";
+    QString filename = "programs/" + mProgramName + ".txt";
+    bool reload = false;
+    QFile file(filename);
+    if (!file.exists())
+        reload = true;
+    if (text.isEmpty())
+    {
+        file.remove();
+        mProgramName = "";
+        reload = true;
+    }
+    else
+    {
+        file.open(QIODevice::WriteOnly);
+        file.write(text.toUtf8());
+        file.close();
+    }
+    if (reload)
+        listPrograms();
+}
+
+void MainWindow::load(QString name)
+{
+    QString filename = "programs/" + name + ".txt";
+    QFile file(filename);
+    if (!file.exists())
+        return;
+    mProgramName = name;
+    file.open(QIODevice::ReadOnly);
+    QString text = QString::fromUtf8(file.readAll());
+    file.close();
+    editor->setPlainText(text);
+    mProgramBtns[name]->setChecked(true);
 }
 
 void MainWindow::execLine(int num)
@@ -299,7 +380,7 @@ bool MainWindow::parseLine(QString line)
     line.replace("ё", "е").replace("Ё", "Е");
 //    qDebug() << "line:" << line;
     QRegExp rx;
-    mProcessing = false;
+//    mProcessing = false;
 
     rx = QRegExp("^[\\[\\(\\{](.*)$");
     if (line.indexOf(rx) != -1)
@@ -337,11 +418,14 @@ bool MainWindow::parseLine(QString line)
         mProcessing = false;
         return true;
     }
-    rx = QRegExp("^(\\w+)\\s+(\\d+)$", Qt::CaseInsensitive);
+    rx = QRegExp("^(\\w+)\\s+([\\d,\\.]+)$", Qt::CaseInsensitive);
     if (line.indexOf(rx) != -1)
     {
         QString cmd = rx.cap(1).toUpper();
-        int value = rx.cap(2).toInt();
+        bool ok;
+        float value = rx.cap(2).replace(',', '.').toFloat(&ok);
+        if (!ok)
+            return false;
 //        qDebug() << rx.cap(1) << value;
         if (cmd == "ПОВТОР")
         {
@@ -358,11 +442,11 @@ bool MainWindow::parseLine(QString line)
         {
             device->backward(value);
         }
-        else if (cmd == "ВЛЕВО")
+        else if (cmd == "ВЛЕВО" || cmd == "НАЛЕВО")
         {
             device->left(value);
         }
-        else if (cmd == "ВПРАВО")
+        else if (cmd == "ВПРАВО" || cmd == "НАПРАВО")
         {
             device->right(value);
         }
@@ -382,13 +466,48 @@ bool MainWindow::parseLine(QString line)
             device->stop();
             stop();
         }
-        else if (cmd == "ПО" || cmd == "ПЕРОПОДНЯТЬ")
+        else if (cmd == "ПП" || cmd == "ПЕРОПОДНЯТЬ" || cmd == "ПОДНЯТЬПЕРО")
         {
-            mProcessing = false;
+            device->penUp();
         }
-        else if (cmd == "ПП" || cmd == "ПЕРООПУСТИТЬ")
+        else if (cmd == "ПО" || cmd == "ОП" || cmd == "ПЕРООПУСТИТЬ" || cmd == "ОПУСТИТЬПЕРО")
         {
-            mProcessing = false;
+            device->penDown();
+        }
+        else
+        {
+            return false;
+        }
+        return true;
+    }
+    rx = QRegExp("^(\\w+)\\s+(\\w+)$", Qt::CaseInsensitive);
+    if (line.indexOf(rx) != -1)
+    {
+        QString cmd = rx.cap(1).toUpper();
+        QString param = rx.cap(2).toUpper();
+//        qDebug () << cmd << param;
+        if (cmd == "ПЕРО")
+        {
+            if (param == "ПОДНЯТЬ")
+                device->penUp();
+            else if (param == "ОПУСТИТЬ")
+                device->penDown();
+            else
+                return false;
+        }
+        else if (cmd == "ПОДНЯТЬ")
+        {
+            if (param == "ПЕРО")
+                device->penUp();
+            else
+                return false;
+        }
+        else if (cmd == "ОПУСТИТЬ")
+        {
+            if (param == "ПЕРО")
+                device->penDown();
+            else
+                return false;
         }
         else
         {

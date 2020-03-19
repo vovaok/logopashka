@@ -4,7 +4,7 @@ Robot::Robot()
 {
     mValid = false;
     mEnabled = false;
-    mBusyV = mBusyW = 0;
+    mBusyV = mBusyW = mBusyPen = 0;
     mVt = mWt = 0;
     mV = mW = 0;
 
@@ -46,6 +46,13 @@ void Robot::onObjectReceived(QString name, QVariant)
                 emit commandCompleted();
         }
     }
+
+    if (mBusyPen)
+    {
+        --mBusyPen;
+        if (!mBusyPen)
+            emit commandCompleted();
+    }
 }
 
 void Robot::update()
@@ -73,26 +80,26 @@ void Robot::setControl(float v, float w)
 
 void Robot::forward(float value)
 {
-    mBusyV = 5;
-    sendObject("forward", value*0.5);
+    mBusyV = 10;
+    sendObject("forward", value*0.5*20/44);
 }
 
 void Robot::backward(float value)
 {
-    mBusyV = 5;
-    sendObject("backward", value*0.5);
+    mBusyV = 10;
+    sendObject("backward", value*0.5*20/44);
 }
 
 void Robot::left(float value)
 {
-    mBusyW = 5;
-    sendObject("right", value * 6.8f / 360);
+    mBusyW = 10;
+    sendObject("left", value * 7.3f / 360);
 }
 
 void Robot::right(float value)
 {
-    mBusyW = 5;
-    sendObject("left", value * 6.8f / 360);
+    mBusyW = 10;
+    sendObject("right", value * 7.3f / 360);
 }
 
 void Robot::stop()
@@ -100,4 +107,16 @@ void Robot::stop()
     mVt = 0;
     mWt = 0;
     sendObject("stop");
+}
+
+void Robot::penUp()
+{
+    mBusyPen = 10;
+    sendObject("penUp");
+}
+
+void Robot::penDown()
+{
+    mBusyPen = 10;
+    sendObject("penDown");
 }

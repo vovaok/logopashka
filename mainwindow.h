@@ -7,6 +7,7 @@
 #include "objnetvirtualinterface.h"
 #include "objnetmaster.h"
 #include "joystickwidget.h"
+#include "led.h"
 #include "robot.h"
 #ifdef Q_OS_WIN
 //#include "spacemouse.h"
@@ -30,6 +31,7 @@ public:
     bool isRunning() const {return mScriptIndex >= 0;}
 
 protected slots:
+    virtual void closeEvent(QCloseEvent *e) override;
     virtual void keyPressEvent(QKeyEvent *e) override;
 
 private:
@@ -50,9 +52,18 @@ private:
     //QRotationSensor *imu;
 
     QStackedWidget *stack;
+    QVBoxLayout *mProgramLayout;
+    QLabel *mSpacer;
 
+    Led *connLed;
     QLabel *connlabel;
     QPushButton *enableBtn;
+
+    QStringList mPrograms;
+    QString mProgramName;
+    QMap<QString, QPushButton*> mProgramBtns;
+
+    QStringList mCallStack;
 
     JoystickWidget *joy;
 
@@ -76,5 +87,9 @@ private slots:
     void run();
     void step();
     void stop();
+
+    void listPrograms();
+    void save();
+    void load(QString name);
 };
 #endif // MAINWINDOW_H

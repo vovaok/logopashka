@@ -14,7 +14,7 @@ public:
 private:
     bool mValid;
     bool mEnabled;
-    int mBusyV, mBusyW;
+    int mBusyV, mBusyW, mBusyPen;
     float mVt, mWt;
     float mV, mW;
 
@@ -32,6 +32,9 @@ public:
     void left(float value);
     void right(float value);
     void stop();
+
+    void penUp();
+    void penDown();
 
     bool isEnabled() const {return mEnabled;}
     bool isBusy() const {return mBusyV || mBusyW;}
