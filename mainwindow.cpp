@@ -4,18 +4,15 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow),
-      mScriptIndex(-1),
       mProcessing(false),
       mDebug(false),
       mSpacer(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("Robot");
-    showFullScreen();
+//    showFullScreen();
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
-
-    mLoopCount = 0;
 
     QFile styleFile(":/style.css");
     styleFile.open(QIODevice::ReadOnly);
@@ -25,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     styleFile.close();
     setStyleSheet(css);   
 
+    context = &mainContext;
 
 //    #ifdef Q_OS_WIN
 //    joy3D = new SpaceMouse(this);
@@ -164,7 +162,7 @@ void MainWindow::onTimer()
 {
     float dt = 0.016f;
 
-    if (mScriptIndex != -1 && !mProcessing && !mDebug)
+    if (context->PC != -1 && !mProcessing && !mDebug)
     {
         mProcessing = true;
         step();
@@ -217,7 +215,8 @@ void MainWindow::run()
     mDebug = false;
     if (!device->isEnabled())
         enableBtn->setChecked(true);
-    execLine(0);
+    context->PC = 0;
+    execLine();
 }
 
 void MainWindow::step()
@@ -228,27 +227,26 @@ void MainWindow::step()
         return;
     }
 
-    mScriptIndex++;
+    context->PC++;
 
-    execLine(mScriptIndex);
+    execLine();
 
-    qDebug() << "line #" << mScriptIndex << "loopcount:" << mLoopCount << "start:" << mLoopStartLine << "end:" << mLoopEndLine;
-
-    if (mLoopCount)
-    {
-        if (mScriptIndex == mLoopEndLine)
-        {
-            --mLoopCount;
-            if (mLoopCount )
-                mScriptIndex = mLoopStartLine - 1;
-        }
-    }
+//    if (mLoopCount)
+//    {
+//        if (mScriptIndex == mLoopEndLine)
+//        {
+//            --mLoopCount;
+//            if (mLoopCount )
+//                mScriptIndex = mLoopStartLine - 1;
+//        }
+//    }
 }
 
 void MainWindow::stop()
 {
     mProcessing = false;
-    mScriptIndex = -1;
+    context = &mainContext;
+    mainContext.PC = -1;
     editor->highlightLine(-1);
     device->stop();
     enableBtn->setChecked(false);
@@ -354,24 +352,23 @@ void MainWindow::load(QString name)
     mProgramBtns[name]->setChecked(true);
 }
 
-void MainWindow::execLine(int num)
+void MainWindow::execLine()
 {
-    if (num >= mScript.size())
+    if (context->PC >= mScript.size())
     {
         stop();
         return;
     }
 
-    mScriptIndex = num;
-    editor->highlightLine(num, QColor(139, 227, 237));
+    editor->highlightLine(context->PC, QColor(139, 227, 237));
     mProcessing = true;
 
-    QString line = mScript[num];
+    QString line = mScript[context->PC];
     bool ok = parseLine(line.trimmed());
     if (!ok)
     {
         stop();
-        editor->highlightLine(num, Qt::red);
+        editor->highlightLine(context->PC, Qt::red);
     }
 }
 
@@ -382,139 +379,167 @@ bool MainWindow::parseLine(QString line)
     QRegExp rx;
 //    mProcessing = false;
 
-    rx = QRegExp("^[\\[\\(\\{](.*)$");
-    if (line.indexOf(rx) != -1)
+    int idx = 0;
+    do
     {
-        mLoopStartLine = mScriptIndex;
-        mLoopEndLine = -1; // find it later
-        line = rx.cap(1).trimmed();
-    }
-    rx = QRegExp("^(.*)\\s*[\\[\\(\\{]$");
-    if (line.indexOf(rx) != -1)
-    {
-        mLoopStartLine = mScriptIndex + 1;
-        mLoopEndLine = -1; // find it later
-        line = rx.cap(1).trimmed();
-    }
-    rx = QRegExp("^(.*)\\s*[\\]\\)\\}]$");
-    if (line.indexOf(rx) != -1)
-    {
-        mLoopEndLine = mScriptIndex;
-        line = rx.cap(1).trimmed();
-    }
+        QRegExp rx("(\\w+|[\\d.,]+|\\(|\\))\\s*");
+        idx = rx.indexIn(line, idx);
+        if (idx < 0)
+            break;
+        idx += rx.matchedLength();
+        qDebug() << rx.cap(1);
 
-    qDebug() << "line:" << line;
+//        idx = line.indexOf(QRegExp("[\\s()]"));
+//        QString cmd = line.left(idx);
+//        line.remove(0, idx);
+//        if (line[0] == ' ')
+//            line.remove(0, 1);
+//        if (cmd.isEmpty())
+//            continue;
+//        qDebug() << cmd << line;
+    }
+    while (idx >= 0);
 
-    if (line.isEmpty())
-    {
-        mProcessing = false;
-        return true;
-    }
+    return true;
 
-    rx = QRegExp("^(\\w+):$", Qt::CaseInsensitive);
-    if (line.indexOf(rx) != -1)
-    {
-        qDebug() << "proc name:" << rx.cap(1);
-        mProcessing = false;
-        return true;
-    }
-    rx = QRegExp("^(\\w+)\\s+([\\d,\\.]+)$", Qt::CaseInsensitive);
-    if (line.indexOf(rx) != -1)
-    {
-        QString cmd = rx.cap(1).toUpper();
-        bool ok;
-        float value = rx.cap(2).replace(',', '.').toFloat(&ok);
-        if (!ok)
-            return false;
-//        qDebug() << rx.cap(1) << value;
-        if (cmd == "ПОВТОР")
-        {
-            mLoopCount = value;
-            mLoopStartLine = mScriptIndex + 1;
-            mLoopEndLine = -1;// mLoopStartLine;
-            mProcessing = false;
-        }
-        else if (cmd == "ВПЕРЕД")
-        {
-            device->forward(value);
-        }
-        else if (cmd == "НАЗАД")
-        {
-            device->backward(value);
-        }
-        else if (cmd == "ВЛЕВО" || cmd == "НАЛЕВО")
-        {
-            device->left(value);
-        }
-        else if (cmd == "ВПРАВО" || cmd == "НАПРАВО")
-        {
-            device->right(value);
-        }
-        else
-        {
-            return false;
-        }
-        return true;
-    }
-    rx = QRegExp("^(\\w+)$", Qt::CaseInsensitive);
-    if (line.indexOf(rx) != -1)
-    {
-        QString cmd = line.toUpper();
-//        qDebug() << rx.cap(1);
-        if (cmd == "СТОП")
-        {
-            device->stop();
-            stop();
-        }
-        else if (cmd == "ПП" || cmd == "ПЕРОПОДНЯТЬ" || cmd == "ПОДНЯТЬПЕРО")
-        {
-            device->penUp();
-        }
-        else if (cmd == "ПО" || cmd == "ОП" || cmd == "ПЕРООПУСТИТЬ" || cmd == "ОПУСТИТЬПЕРО")
-        {
-            device->penDown();
-        }
-        else
-        {
-            return false;
-        }
-        return true;
-    }
-    rx = QRegExp("^(\\w+)\\s+(\\w+)$", Qt::CaseInsensitive);
-    if (line.indexOf(rx) != -1)
-    {
-        QString cmd = rx.cap(1).toUpper();
-        QString param = rx.cap(2).toUpper();
-//        qDebug () << cmd << param;
-        if (cmd == "ПЕРО")
-        {
-            if (param == "ПОДНЯТЬ")
-                device->penUp();
-            else if (param == "ОПУСТИТЬ")
-                device->penDown();
-            else
-                return false;
-        }
-        else if (cmd == "ПОДНЯТЬ")
-        {
-            if (param == "ПЕРО")
-                device->penUp();
-            else
-                return false;
-        }
-        else if (cmd == "ОПУСТИТЬ")
-        {
-            if (param == "ПЕРО")
-                device->penDown();
-            else
-                return false;
-        }
-        else
-        {
-            return false;
-        }
-        return true;
-    }
+//    rx = QRegExp("^[\\[\\(\\{](.*)$");
+//    if (line.indexOf(rx) != -1)
+//    {
+//        mLoopStartLine = mScriptIndex;
+//        mLoopEndLine = -1; // find it later
+//        line = rx.cap(1).trimmed();
+//    }
+//    rx = QRegExp("^(.*)\\s*[\\[\\(\\{]$");
+//    if (line.indexOf(rx) != -1)
+//    {
+//        mLoopStartLine = mScriptIndex + 1;
+//        mLoopEndLine = -1; // find it later
+//        line = rx.cap(1).trimmed();
+//    }
+//    rx = QRegExp("^(.*)\\s*[\\]\\)\\}]$");
+//    if (line.indexOf(rx) != -1)
+//    {
+//        mLoopEndLine = mScriptIndex;
+//        line = rx.cap(1).trimmed();
+//    }
+
+//    qDebug() << "line:" << line;
+
+//    if (line.isEmpty())
+//    {
+//        mProcessing = false;
+//        return true;
+//    }
+
+//    rx = QRegExp("^(\\w+):$", Qt::CaseInsensitive);
+//    if (line.indexOf(rx) != -1)
+//    {
+//        qDebug() << "proc name:" << rx.cap(1);
+//        mProcessing = false;
+//        return true;
+//    }
+//    rx = QRegExp("^(\\w+)\\s+([\\d,\\.]+)$", Qt::CaseInsensitive);
+//    if (line.indexOf(rx) != -1)
+//    {
+//        QString cmd = rx.cap(1).toUpper();
+//        bool ok;
+//        float value = rx.cap(2).replace(',', '.').toFloat(&ok);
+//        if (!ok)
+//            return false;
+////        qDebug() << rx.cap(1) << value;
+//        if (cmd == "ПОВТОР")
+//        {
+//            mLoopCount = value;
+//            mLoopStartLine = mScriptIndex + 1;
+//            mLoopEndLine = -1;// mLoopStartLine;
+//            mProcessing = false;
+//        }
+//        else if (cmd == "ВПЕРЕД")
+//        {
+//            device->forward(value);
+//        }
+//        else if (cmd == "НАЗАД")
+//        {
+//            device->backward(value);
+//        }
+//        else if (cmd == "ВЛЕВО" || cmd == "НАЛЕВО")
+//        {
+//            device->left(value);
+//        }
+//        else if (cmd == "ВПРАВО" || cmd == "НАПРАВО")
+//        {
+//            device->right(value);
+//        }
+//        else
+//        {
+//            return false;
+//        }
+//        return true;
+//    }
+//    rx = QRegExp("^(\\w+)$", Qt::CaseInsensitive);
+//    if (line.indexOf(rx) != -1)
+//    {
+//        QString cmd = line.toUpper();
+////        qDebug() << rx.cap(1);
+//        if (cmd == "СТОП")
+//        {
+//            device->stop();
+//            stop();
+//        }
+//        else if (cmd == "ПП" || cmd == "ПЕРОПОДНЯТЬ" || cmd == "ПОДНЯТЬПЕРО")
+//        {
+//            device->penUp();
+//        }
+//        else if (cmd == "ПО" || cmd == "ОП" || cmd == "ПЕРООПУСТИТЬ" || cmd == "ОПУСТИТЬПЕРО")
+//        {
+//            device->penDown();
+//        }
+//        else
+//        {
+//            return false;
+//        }
+//        return true;
+//    }
+//    rx = QRegExp("^(\\w+)\\s+(\\w+)$", Qt::CaseInsensitive);
+//    if (line.indexOf(rx) != -1)
+//    {
+//        QString cmd = rx.cap(1).toUpper();
+//        QString param = rx.cap(2).toUpper();
+////        qDebug () << cmd << param;
+//        if (cmd == "ПЕРО")
+//        {
+//            if (param == "ПОДНЯТЬ")
+//                device->penUp();
+//            else if (param == "ОПУСТИТЬ")
+//                device->penDown();
+//            else
+//                return false;
+//        }
+//        else if (cmd == "ПОДНЯТЬ")
+//        {
+//            if (param == "ПЕРО")
+//                device->penUp();
+//            else
+//                return false;
+//        }
+//        else if (cmd == "ОПУСТИТЬ")
+//        {
+//            if (param == "ПЕРО")
+//                device->penDown();
+//            else
+//                return false;
+//        }
+//        else
+//        {
+//            return false;
+//        }
+//        return true;
+//    }
+
+//    if (line.startsWith("ИСПОЛНИТЬ"))
+//    {
+
+//    }
 
     return false;
 }

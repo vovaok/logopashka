@@ -28,7 +28,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    bool isRunning() const {return mScriptIndex >= 0;}
+    bool isRunning() const {return mainContext.PC >= 0;}
 
 protected slots:
     virtual void closeEvent(QCloseEvent *e) override;
@@ -67,18 +67,38 @@ private:
 
     JoystickWidget *joy;
 
-//    QList<NamedPose> mScript;
-//    QTableWidget *mScriptTable;
     QStringList mScript;
-    int mScriptIndex;
+//    int mScriptIndex;
     bool mProcessing;
     bool mDebug;
 
-    int mLoopCount;
-    int mLoopStartLine;
-    int mLoopEndLine;
+    struct Loop
+    {
+        int counter;
+        int line;
+    };
 
-    void execLine(int num);
+    class ScriptContext
+    {
+    public:
+        int PC;
+        QMap<QString, float> vars;
+        QVector<Loop> loops;
+
+        ScriptContext() :
+            PC(-1)
+        {}
+    };
+
+    ScriptContext mainContext;
+
+    ScriptContext *context;
+
+//    int mLoopCount;
+//    int mLoopStartLine;
+//    int mLoopEndLine;
+
+    void execLine();
     bool parseLine(QString line);
 
 private slots:
