@@ -28,7 +28,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    bool isRunning() const {return mainContext.PC >= 0;}
+    bool isRunning() const {return context;}
 
 protected slots:
     virtual void closeEvent(QCloseEvent *e) override;
@@ -72,6 +72,38 @@ private:
     bool mProcessing;
     bool mDebug;
 
+    class Proc
+    {
+    private:
+        int mParamCount;
+        //explicit Proc(int paramCount);
+        typedef std::function<void()> Func0;
+        typedef std::function<void(QString)> Func1;
+        typedef std::function<void(QString, QString)> Func2;
+        Func0 exec0;
+        Func1 exec1;
+        Func2 exec2;
+    public:
+        Proc(){}
+        operator =(Func0 f) {mParamCount = 0; exec0 = f;}
+        operator =(Func1 f) {mParamCount = 1; exec1 = f;}
+        operator =(Func2 f) {mParamCount = 2; exec2 = f;}
+        int paramCount() const {return mParamCount;}
+        QString operator()(QStringList params)
+        {
+            qDebug() << "params" << params.join(", ");
+            if (mParamCount == 0)
+                exec0();
+            else if (mParamCount == 1)
+                exec1(params[0]);
+            else if (mParamCount == 2)
+                exec2(params[0], params[1]);
+            return "";
+        }
+    };
+
+    QMap<QString, Proc> proc;
+
     struct Loop
     {
         int counter;
@@ -80,17 +112,46 @@ private:
 
     class ScriptContext
     {
+    private:
+        int mPos;
+        QString mText;
+        QMap<QString, float> mVars;
+        ScriptContext *mParent;
+
     public:
-        int PC;
-        QMap<QString, float> vars;
-        QVector<Loop> loops;
+        ScriptContext(QString text, ScriptContext *parent=nullptr) :
+            mPos(0),
+            mParent(parent)
+        {
+            mText = text.replace('\n', ' ');
+        }
 
-        ScriptContext() :
-            PC(-1)
-        {}
+        QString fetchNext()
+        {
+            QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+-*/])\\s*");
+            int idx = rx.indexIn(mText, mPos);
+            if (idx < 0)
+                return "";
+            mPos = idx + rx.matchedLength();
+            QString word = rx.cap(1).toUpper();
+            if (word == "(")
+            {
+                int pcnt = 1;
+                int oldpos = mPos;
+                for (; mPos<mText.length() && pcnt; mPos++)
+                {
+                    if (mText[mPos] == '(')
+                        pcnt++;
+                    else if (mText[mPos] == ')')
+                        --pcnt;
+                }
+                word = mText.mid(oldpos, mPos - oldpos - 1);
+            }
+            return word;
+        }
+
+        ScriptContext *parent() {return mParent;}
     };
-
-    ScriptContext mainContext;
 
     ScriptContext *context;
 
@@ -98,8 +159,10 @@ private:
 //    int mLoopStartLine;
 //    int mLoopEndLine;
 
-    void execLine();
+//    void execLine();
     bool parseLine(QString line);
+
+    void createProcedures();
 
 private slots:
     void onTimer();
@@ -111,5 +174,7 @@ private slots:
     void listPrograms();
     void save();
     void load(QString name);
+
+    void exec(QString command);
 };
 #endif // MAINWINDOW_H

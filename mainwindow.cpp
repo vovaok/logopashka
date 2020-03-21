@@ -22,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     styleFile.close();
     setStyleSheet(css);   
 
-    context = &mainContext;
+    context = nullptr;
 
 //    #ifdef Q_OS_WIN
 //    joy3D = new SpaceMouse(this);
@@ -69,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     editor = new CodeEditor;
+    editor->setMinimumWidth(200);
     editor->viewport()->setCursor(QCursor(QPixmap::fromImage(QImage(":/ibeam.png"))));
     editor->setCursorWidth(3);
 
@@ -108,6 +109,10 @@ MainWindow::MainWindow(QWidget *parent)
     lay->addLayout(controlLay, 1, 2);
 
     ui->centralwidget->setLayout(lay);
+
+
+    createProcedures();
+
 
     listPrograms();
 
@@ -162,7 +167,7 @@ void MainWindow::onTimer()
 {
     float dt = 0.016f;
 
-    if (context->PC != -1 && !mProcessing && !mDebug)
+    if (context && !mProcessing && !mDebug)
     {
         mProcessing = true;
         step();
@@ -211,12 +216,12 @@ void MainWindow::run()
     editor->setReadOnly(true);
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(false);
-    mScript = editor->toPlainText().split('\n');
+    QString text = editor->toPlainText();
+    mScript = text.split('\n');
     mDebug = false;
     if (!device->isEnabled())
         enableBtn->setChecked(true);
-    context->PC = 0;
-    execLine();
+    context = new ScriptContext(text, context);
 }
 
 void MainWindow::step()
@@ -224,12 +229,50 @@ void MainWindow::step()
     if (!isRunning())
     {
         run();
-        return;
+//        return;
     }
 
-    context->PC++;
+    QString word = context->fetchNext();
+    word = word.replace("Ё", "Е");
+    qDebug() << word;
+    if (proc.contains(word))
+    {
+        QStringList params;
+        int pcnt = proc[word].paramCount();
+        for (int i=0; i<pcnt; i++)
+        {
+            QString p = context->fetchNext();
+            params << p;
+        }
+        proc[word](params);
+    }
+    else if (word.isEmpty())
+    {
+        ScriptContext *temp = context;
+        context = context->parent();
+        delete temp;
+        if (!context)
+            stop();
+    }
 
-    execLine();
+//    bool ok;
+//    int intval;
+//    float floatval;
+//    intval = word.toInt(&ok);
+//    if (ok)
+//        qDebug() << "integer" << intval;
+//    else
+//    {
+//        floatval = word.toFloat(&ok);
+//        if (ok)
+//            qDebug() << "float" << floatval;
+//        else
+//            qDebug() << word;
+//    }
+
+
+
+//    execLine();
 
 //    if (mLoopCount)
 //    {
@@ -245,8 +288,12 @@ void MainWindow::step()
 void MainWindow::stop()
 {
     mProcessing = false;
-    context = &mainContext;
-    mainContext.PC = -1;
+    while (context)
+    {
+        ScriptContext *temp = context;
+        context = context->parent();
+        delete temp;
+    }
     editor->highlightLine(-1);
     device->stop();
     enableBtn->setChecked(false);
@@ -352,51 +399,45 @@ void MainWindow::load(QString name)
     mProgramBtns[name]->setChecked(true);
 }
 
-void MainWindow::execLine()
+//void MainWindow::execLine()
+//{
+//    if (context->PC >= mScript.size())
+//    {
+//        stop();
+//        return;
+//    }
+
+//    editor->highlightLine(context->PC, QColor(139, 227, 237));
+//    mProcessing = true;
+
+//    QString line = mScript[context->PC];
+//    bool ok = parseLine(line.trimmed());
+//    if (!ok)
+//    {
+//        stop();
+//        editor->highlightLine(context->PC, Qt::red);
+//    }
+//}
+
+void MainWindow::exec(QString command)
 {
-    if (context->PC >= mScript.size())
-    {
-        stop();
-        return;
-    }
 
-    editor->highlightLine(context->PC, QColor(139, 227, 237));
-    mProcessing = true;
-
-    QString line = mScript[context->PC];
-    bool ok = parseLine(line.trimmed());
-    if (!ok)
-    {
-        stop();
-        editor->highlightLine(context->PC, Qt::red);
-    }
 }
 
 bool MainWindow::parseLine(QString line)
 {
     line.replace("ё", "е").replace("Ё", "Е");
-//    qDebug() << "line:" << line;
-    QRegExp rx;
 //    mProcessing = false;
 
     int idx = 0;
     do
     {
-        QRegExp rx("(\\w+|[\\d.,]+|\\(|\\))\\s*");
+        QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+-*/])\\s*");
         idx = rx.indexIn(line, idx);
         if (idx < 0)
             break;
         idx += rx.matchedLength();
-        qDebug() << rx.cap(1);
-
-//        idx = line.indexOf(QRegExp("[\\s()]"));
-//        QString cmd = line.left(idx);
-//        line.remove(0, idx);
-//        if (line[0] == ' ')
-//            line.remove(0, 1);
-//        if (cmd.isEmpty())
-//            continue;
-//        qDebug() << cmd << line;
+        QString word = rx.cap(1).toUpper();
     }
     while (idx >= 0);
 
@@ -542,4 +583,42 @@ bool MainWindow::parseLine(QString line)
 //    }
 
     return false;
+}
+
+void MainWindow::createProcedures()
+{
+    proc["ВПЕРЕД"] = [=](QString value)
+    {
+        device->forward(value.toFloat());
+    };
+    proc["НАЗАД"] = [=](QString value)
+    {
+        device->backward(value.toFloat());
+    };
+    proc["ВЛЕВО"] = [=](QString value)
+    {
+        device->left(value.toFloat());
+    };
+    proc["ВПРАВО"] = [=](QString value)
+    {
+        device->right(value.toFloat());
+    };
+    proc["ПЕРОПОДНЯТЬ"] = [=]()
+    {
+        device->penUp();
+    };
+    proc["ПП"] = proc["ПЕРОПОДНЯТЬ"];
+    proc["ПЕРООПУСТИТЬ"] = [=]()
+    {
+        device->penDown();
+    };
+    proc["ПО"] = proc["ПЕРООПУСТИТЬ"];
+
+    proc["ПОВТОР"] = [=](QString count, QString list)
+    {
+        int cnt = count.toInt();
+        for (int i=0; i<cnt; i++)
+            context = new ScriptContext(list, context);
+    };
+
 }
