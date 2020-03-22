@@ -75,47 +75,70 @@ private:
     class Proc
     {
     private:
+        bool mIsFunc;
         int mParamCount;
         //explicit Proc(int paramCount);
-        typedef std::function<void()> Func0;
-        typedef std::function<void(QString)> Func1;
-        typedef std::function<void(QString, QString)> Func2;
-        Func0 exec0;
-        Func1 exec1;
-        Func2 exec2;
+        typedef std::function<void()> Proc0;
+        typedef std::function<void(QString)> Proc1;
+        typedef std::function<void(QString, QString)> Proc2;
+        typedef std::function<QString()> Func0;
+        typedef std::function<QString(QString)> Func1;
+        typedef std::function<QString(QString, QString)> Func2;
+        Proc0 proc0;
+        Proc1 proc1;
+        Proc2 proc2;
+        Func0 func0;
+        Func1 func1;
+        Func2 func2;
     public:
         Proc(){}
-        operator =(Func0 f) {mParamCount = 0; exec0 = f;}
-        operator =(Func1 f) {mParamCount = 1; exec1 = f;}
-        operator =(Func2 f) {mParamCount = 2; exec2 = f;}
+        void operator =(Proc0 f) {mParamCount = 0; mIsFunc = false; proc0 = f;}
+        void operator =(Proc1 f) {mParamCount = 1; mIsFunc = false; proc1 = f;}
+        void operator =(Proc2 f) {mParamCount = 2; mIsFunc = false; proc2 = f;}
+        void operator =(Func0 f) {mParamCount = 0; mIsFunc = true; func0 = f;}
+        void operator =(Func1 f) {mParamCount = 1; mIsFunc = true; func1 = f;}
+        void operator =(Func2 f) {mParamCount = 2; mIsFunc = true; func2 = f;}
         int paramCount() const {return mParamCount;}
         QString operator()(QStringList params)
         {
             qDebug() << "params" << params.join(", ");
+            if (mIsFunc)
+            {
+                if (mParamCount == 0)
+                    return func0();
+                else if (mParamCount == 1)
+                    return func1(params[0]);
+                else if (mParamCount == 2)
+                    return func2(params[0], params[1]);
+            }
+
             if (mParamCount == 0)
-                exec0();
+                proc0();
             else if (mParamCount == 1)
-                exec1(params[0]);
+                proc1(params[0]);
             else if (mParamCount == 2)
-                exec2(params[0], params[1]);
+                proc2(params[0], params[1]);
             return "";
         }
     };
 
     QMap<QString, Proc> proc;
 
-    struct Loop
+    QMap<QString, QString> mVars;
+    void setVar(QString name, QString value) {mVars[name] = value;}
+    QString var(QString name)
     {
-        int counter;
-        int line;
-    };
+        if (mVars.contains(name))
+            return mVars[name];
+        return "";
+    }
 
     class ScriptContext
     {
     private:
         int mPos;
         QString mText;
-        QMap<QString, float> mVars;
+//        QMap<QString, QString> mVars;
         ScriptContext *mParent;
 
     public:
@@ -126,7 +149,7 @@ private:
             mText = text.replace('\n', ' ');
         }
 
-        QString fetchNext()
+        QString nextToken()
         {
             QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+-*/])\\s*");
             int idx = rx.indexIn(mText, mPos);
@@ -137,7 +160,6 @@ private:
             if (word == "(")
             {
                 int pcnt = 1;
-                int oldpos = mPos;
                 for (; mPos<mText.length() && pcnt; mPos++)
                 {
                     if (mText[mPos] == '(')
@@ -145,22 +167,26 @@ private:
                     else if (mText[mPos] == ')')
                         --pcnt;
                 }
-                word = mText.mid(oldpos, mPos - oldpos - 1);
+                word = mText.mid(idx, mPos - idx);
             }
             return word;
         }
 
         ScriptContext *parent() {return mParent;}
+
+//        void setVar(QString name, QString value) {mVars[name] = value;}
+//        QString var(QString name)
+//        {
+//            if (mVars.contains(name))
+//                return mVars[name];
+//            else if (mParent)
+//                return mParent->var(name);
+//            return "";
+//        }
     };
 
     ScriptContext *context;
 
-//    int mLoopCount;
-//    int mLoopStartLine;
-//    int mLoopEndLine;
-
-//    void execLine();
-    bool parseLine(QString line);
 
     void createProcedures();
 
@@ -168,13 +194,12 @@ private slots:
     void onTimer();
 
     void run();
+    QString eval(QString token);
     void step();
     void stop();
 
     void listPrograms();
     void save();
     void load(QString name);
-
-    void exec(QString command);
 };
 #endif // MAINWINDOW_H

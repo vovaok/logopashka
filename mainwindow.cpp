@@ -224,6 +224,46 @@ void MainWindow::run()
     context = new ScriptContext(text, context);
 }
 
+QString MainWindow::eval(QString token)
+{
+    token = token.replace("Ё", "Е");
+
+    qDebug() << "EVAL" << token;
+
+    if (proc.contains(token))
+    {
+        QStringList params;
+        int pcnt = proc[token].paramCount();
+        for (int i=0; i<pcnt; i++)
+        {
+            QString p = context->nextToken();
+            //qDebug() << "FETCHED" << p;
+            if (token == "ПОВТОР" && i == 1)
+                params << p.mid(1).chopped(1);
+            else
+                params << eval(p);
+        }
+        return proc[token](params);
+    }
+    else if (token.startsWith("\""))
+    {
+        return token.mid(1);
+    }
+    else if (token.startsWith(":"))
+    {
+        return var(token.mid(1));
+    }
+    else if (token.indexOf(QRegExp("^[\\d.,]+$")) >= 0)
+    {
+        return token.replace(",", ".");
+    }
+    else if (token.startsWith("(") && token.endsWith(")"))
+    {
+        qDebug() << "need createContext or something else";
+        return token.mid(1).chopped(1);
+    }
+}
+
 void MainWindow::step()
 {
     if (!isRunning())
@@ -232,57 +272,21 @@ void MainWindow::step()
 //        return;
     }
 
-    QString word = context->fetchNext();
-    word = word.replace("Ё", "Е");
-    qDebug() << word;
-    if (proc.contains(word))
-    {
-        QStringList params;
-        int pcnt = proc[word].paramCount();
-        for (int i=0; i<pcnt; i++)
-        {
-            QString p = context->fetchNext();
-            params << p;
-        }
-        proc[word](params);
-    }
-    else if (word.isEmpty())
+    QString token = context->nextToken();
+
+    if (token.isEmpty())
     {
         ScriptContext *temp = context;
         context = context->parent();
         delete temp;
         if (!context)
             stop();
+        return;
     }
 
-//    bool ok;
-//    int intval;
-//    float floatval;
-//    intval = word.toInt(&ok);
-//    if (ok)
-//        qDebug() << "integer" << intval;
-//    else
-//    {
-//        floatval = word.toFloat(&ok);
-//        if (ok)
-//            qDebug() << "float" << floatval;
-//        else
-//            qDebug() << word;
-//    }
+   // qDebug() << "RUN" << token;
 
-
-
-//    execLine();
-
-//    if (mLoopCount)
-//    {
-//        if (mScriptIndex == mLoopEndLine)
-//        {
-//            --mLoopCount;
-//            if (mLoopCount )
-//                mScriptIndex = mLoopStartLine - 1;
-//        }
-//    }
+    eval(token);
 }
 
 void MainWindow::stop()
@@ -399,191 +403,7 @@ void MainWindow::load(QString name)
     mProgramBtns[name]->setChecked(true);
 }
 
-//void MainWindow::execLine()
-//{
-//    if (context->PC >= mScript.size())
-//    {
-//        stop();
-//        return;
-//    }
 
-//    editor->highlightLine(context->PC, QColor(139, 227, 237));
-//    mProcessing = true;
-
-//    QString line = mScript[context->PC];
-//    bool ok = parseLine(line.trimmed());
-//    if (!ok)
-//    {
-//        stop();
-//        editor->highlightLine(context->PC, Qt::red);
-//    }
-//}
-
-void MainWindow::exec(QString command)
-{
-
-}
-
-bool MainWindow::parseLine(QString line)
-{
-    line.replace("ё", "е").replace("Ё", "Е");
-//    mProcessing = false;
-
-    int idx = 0;
-    do
-    {
-        QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+-*/])\\s*");
-        idx = rx.indexIn(line, idx);
-        if (idx < 0)
-            break;
-        idx += rx.matchedLength();
-        QString word = rx.cap(1).toUpper();
-    }
-    while (idx >= 0);
-
-    return true;
-
-//    rx = QRegExp("^[\\[\\(\\{](.*)$");
-//    if (line.indexOf(rx) != -1)
-//    {
-//        mLoopStartLine = mScriptIndex;
-//        mLoopEndLine = -1; // find it later
-//        line = rx.cap(1).trimmed();
-//    }
-//    rx = QRegExp("^(.*)\\s*[\\[\\(\\{]$");
-//    if (line.indexOf(rx) != -1)
-//    {
-//        mLoopStartLine = mScriptIndex + 1;
-//        mLoopEndLine = -1; // find it later
-//        line = rx.cap(1).trimmed();
-//    }
-//    rx = QRegExp("^(.*)\\s*[\\]\\)\\}]$");
-//    if (line.indexOf(rx) != -1)
-//    {
-//        mLoopEndLine = mScriptIndex;
-//        line = rx.cap(1).trimmed();
-//    }
-
-//    qDebug() << "line:" << line;
-
-//    if (line.isEmpty())
-//    {
-//        mProcessing = false;
-//        return true;
-//    }
-
-//    rx = QRegExp("^(\\w+):$", Qt::CaseInsensitive);
-//    if (line.indexOf(rx) != -1)
-//    {
-//        qDebug() << "proc name:" << rx.cap(1);
-//        mProcessing = false;
-//        return true;
-//    }
-//    rx = QRegExp("^(\\w+)\\s+([\\d,\\.]+)$", Qt::CaseInsensitive);
-//    if (line.indexOf(rx) != -1)
-//    {
-//        QString cmd = rx.cap(1).toUpper();
-//        bool ok;
-//        float value = rx.cap(2).replace(',', '.').toFloat(&ok);
-//        if (!ok)
-//            return false;
-////        qDebug() << rx.cap(1) << value;
-//        if (cmd == "ПОВТОР")
-//        {
-//            mLoopCount = value;
-//            mLoopStartLine = mScriptIndex + 1;
-//            mLoopEndLine = -1;// mLoopStartLine;
-//            mProcessing = false;
-//        }
-//        else if (cmd == "ВПЕРЕД")
-//        {
-//            device->forward(value);
-//        }
-//        else if (cmd == "НАЗАД")
-//        {
-//            device->backward(value);
-//        }
-//        else if (cmd == "ВЛЕВО" || cmd == "НАЛЕВО")
-//        {
-//            device->left(value);
-//        }
-//        else if (cmd == "ВПРАВО" || cmd == "НАПРАВО")
-//        {
-//            device->right(value);
-//        }
-//        else
-//        {
-//            return false;
-//        }
-//        return true;
-//    }
-//    rx = QRegExp("^(\\w+)$", Qt::CaseInsensitive);
-//    if (line.indexOf(rx) != -1)
-//    {
-//        QString cmd = line.toUpper();
-////        qDebug() << rx.cap(1);
-//        if (cmd == "СТОП")
-//        {
-//            device->stop();
-//            stop();
-//        }
-//        else if (cmd == "ПП" || cmd == "ПЕРОПОДНЯТЬ" || cmd == "ПОДНЯТЬПЕРО")
-//        {
-//            device->penUp();
-//        }
-//        else if (cmd == "ПО" || cmd == "ОП" || cmd == "ПЕРООПУСТИТЬ" || cmd == "ОПУСТИТЬПЕРО")
-//        {
-//            device->penDown();
-//        }
-//        else
-//        {
-//            return false;
-//        }
-//        return true;
-//    }
-//    rx = QRegExp("^(\\w+)\\s+(\\w+)$", Qt::CaseInsensitive);
-//    if (line.indexOf(rx) != -1)
-//    {
-//        QString cmd = rx.cap(1).toUpper();
-//        QString param = rx.cap(2).toUpper();
-////        qDebug () << cmd << param;
-//        if (cmd == "ПЕРО")
-//        {
-//            if (param == "ПОДНЯТЬ")
-//                device->penUp();
-//            else if (param == "ОПУСТИТЬ")
-//                device->penDown();
-//            else
-//                return false;
-//        }
-//        else if (cmd == "ПОДНЯТЬ")
-//        {
-//            if (param == "ПЕРО")
-//                device->penUp();
-//            else
-//                return false;
-//        }
-//        else if (cmd == "ОПУСТИТЬ")
-//        {
-//            if (param == "ПЕРО")
-//                device->penDown();
-//            else
-//                return false;
-//        }
-//        else
-//        {
-//            return false;
-//        }
-//        return true;
-//    }
-
-//    if (line.startsWith("ИСПОЛНИТЬ"))
-//    {
-
-//    }
-
-    return false;
-}
 
 void MainWindow::createProcedures()
 {
@@ -621,4 +441,14 @@ void MainWindow::createProcedures()
             context = new ScriptContext(list, context);
     };
 
+    proc["ИСПОЛНИТЬ"] = [=](QString name, QString value)
+    {
+        setVar(name, value);
+    };
+
+    proc["ПРОИЗВОЛЬНО"] = static_cast<std::function<QString(QString)>>([=](QString max)
+    {
+        int value = rand() % max.toInt();
+        return QString::number(value);
+    });
 }

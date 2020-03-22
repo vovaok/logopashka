@@ -6,7 +6,7 @@ TARGET = Robot
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
-CONFIG += c++11
+CONFIG += c++14
 
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/onb/onb.pri)
