@@ -37,7 +37,7 @@ public:
     void penDown();
 
     bool isEnabled() const {return mEnabled;}
-    bool isBusy() const {return mBusyV || mBusyW;}
+    bool isBusy() const {return mBusyV || mBusyW || mBusyPen;}
 
 signals:
     void commandCompleted();

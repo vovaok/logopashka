@@ -142,16 +142,31 @@ private:
         ScriptContext *mParent;
 
     public:
+        QString mCurToken;
+        QStringList mCurParams;
+        QString mResult;
+
         ScriptContext(QString text, ScriptContext *parent=nullptr) :
             mPos(0),
             mParent(parent)
         {
-            mText = text.replace('\n', ' ');
+            QRegExp rx("(;.*\\n|;.*$)");
+            rx.setMinimal(true);
+            mText = text.replace(rx, "\n").replace('\n', ' ');
+        }
+
+        QString testInfixOp()
+        {
+            QRegExp rx("^\\s*([+\\-*/])");
+            int idx = rx.indexIn(mText, mPos, QRegExp::CaretAtOffset);
+            if (idx < 0)
+                return "";
+            return rx.cap(1).toUpper();
         }
 
         QString nextToken()
         {
-            QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+-*/])\\s*");
+            QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+\\-*/])\\s*");
             int idx = rx.indexIn(mText, mPos);
             if (idx < 0)
                 return "";

@@ -169,7 +169,7 @@ void MainWindow::onTimer()
 
     if (context && !mProcessing && !mDebug)
     {
-        mProcessing = true;
+//        mProcessing = true;
         step();
     }
 
@@ -228,22 +228,50 @@ QString MainWindow::eval(QString token)
 {
     token = token.replace("Ё", "Е");
 
+//    qDebug() << "EVAL" << token;
+
+    // FUCKING KNUCKLE!!!
+    QString infixOp = context->testInfixOp();
+    if (!infixOp.isEmpty())
+    {
+        qDebug() << "infix" << infixOp;
+        QString param = token;
+        token = context->nextToken();
+        context->mCurParams << eval(param);
+    }
+
     qDebug() << "EVAL" << token;
 
     if (proc.contains(token))
     {
-        QStringList params;
+        ScriptContext *curContext = context;
+        context->mCurToken = token;
+//        qDebug() << "context params" << context->mCurParams;
+        QStringList params = context->mCurParams;
         int pcnt = proc[token].paramCount();
-        for (int i=0; i<pcnt; i++)
+        for (int i=params.count(); i<pcnt; i++)
         {
             QString p = context->nextToken();
-            //qDebug() << "FETCHED" << p;
             if (token == "ПОВТОР" && i == 1)
                 params << p.mid(1).chopped(1);
             else
-                params << eval(p);
+            {
+                QString value = eval(p);
+                if (value.isEmpty())
+                {
+                    curContext->mCurParams = params;
+//                    qDebug() << "leaving context" << curContext->mCurToken << curContext->mCurParams;
+                    return "";
+                }
+                params << value;
+            }
         }
-        return proc[token](params);
+
+        curContext->mResult = proc[token](params);
+        curContext->mCurToken = "";
+        curContext->mCurParams.clear();
+//        qDebug() << "clear context params";
+        return curContext->mResult;
     }
     else if (token.startsWith("\""))
     {
@@ -259,9 +287,13 @@ QString MainWindow::eval(QString token)
     }
     else if (token.startsWith("(") && token.endsWith(")"))
     {
-        qDebug() << "need createContext or something else";
-        return token.mid(1).chopped(1);
+        QString text = token.mid(1).chopped(1);
+        context = new ScriptContext(text, context);
+//        qDebug() << "need createContext or something else";
+        return "";
     }
+
+    return token; // x3 40 delat, pust budet token
 }
 
 void MainWindow::step()
@@ -276,17 +308,32 @@ void MainWindow::step()
 
     if (token.isEmpty())
     {
-        ScriptContext *temp = context;
+        ScriptContext *oldContext = context;
         context = context->parent();
-        delete temp;
+        if (context && !oldContext->mResult.isEmpty())
+            context->mCurParams << oldContext->mResult;
+        delete oldContext;
         if (!context)
             stop();
-        return;
     }
 
    // qDebug() << "RUN" << token;
 
-    eval(token);
+    if (context)
+    {
+        if (!context->mCurToken.isEmpty())
+        {
+            qDebug() << "curtoken" << context->mCurToken << context->mCurParams;
+            token = context->mCurToken;
+//            if (proc[token].paramCount() == context->mCurParams.count())
+
+        }
+
+
+        QString result = eval(token);
+        qDebug() << "result =" << result;
+
+    }
 }
 
 void MainWindow::stop()
@@ -410,27 +457,34 @@ void MainWindow::createProcedures()
     proc["ВПЕРЕД"] = [=](QString value)
     {
         device->forward(value.toFloat());
+        mProcessing = true;
+//        qDebug() << "forward" << value.toFloat();
     };
     proc["НАЗАД"] = [=](QString value)
     {
         device->backward(value.toFloat());
+        mProcessing = true;
     };
     proc["ВЛЕВО"] = [=](QString value)
     {
         device->left(value.toFloat());
+        mProcessing = true;
     };
     proc["ВПРАВО"] = [=](QString value)
     {
         device->right(value.toFloat());
+        mProcessing = true;
     };
     proc["ПЕРОПОДНЯТЬ"] = [=]()
     {
         device->penUp();
+        mProcessing = true;
     };
     proc["ПП"] = proc["ПЕРОПОДНЯТЬ"];
     proc["ПЕРООПУСТИТЬ"] = [=]()
     {
         device->penDown();
+        mProcessing = true;
     };
     proc["ПО"] = proc["ПЕРООПУСТИТЬ"];
 
@@ -451,4 +505,16 @@ void MainWindow::createProcedures()
         int value = rand() % max.toInt();
         return QString::number(value);
     });
+
+    proc["СУММА"] = static_cast<std::function<QString(QString, QString)>>([=](QString a, QString b)
+    {
+        return QString::number(a.toDouble() + b.toDouble());
+    });
+    proc["+"] = proc["СУММА"];
+
+    proc["РАЗНОСТЬ"] = static_cast<std::function<QString(QString, QString)>>([=](QString a, QString b)
+    {
+        return QString::number(a.toDouble() - b.toDouble());
+    });
+    proc["-"] = proc["РАЗНОСТЬ"];
 }
