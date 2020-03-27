@@ -101,7 +101,7 @@ private:
         int paramCount() const {return mParamCount;}
         QString operator()(QStringList params)
         {
-            qDebug() << "params" << params.join(", ");
+            //qDebug() << "params" << params.join(", ");
             if (mIsFunc)
             {
                 if (mParamCount == 0)
@@ -142,9 +142,8 @@ private:
         ScriptContext *mParent;
 
     public:
-        QString mCurToken;
-        QStringList mCurParams;
-        QString mResult;
+        QString mLastOp;
+//        QStringList mStack;
 
         ScriptContext(QString text, ScriptContext *parent=nullptr) :
             mPos(0),
@@ -155,10 +154,27 @@ private:
             mText = text.replace(rx, "\n").replace('\n', ' ');
         }
 
+        bool isInfixOp(QString token)
+        {
+            QRegExp rx("^([+\\-*/\\^<>=]|>=|<=|<>)$");
+            if (token.indexOf(rx) < 0)
+                return false;
+            return true;
+        }
+
         QString testInfixOp()
         {
-            QRegExp rx("^\\s*([+\\-*/])");
+            QRegExp rx("^\\s*([+\\-*/\\^<>=]|>=|<=|<>)");
             int idx = rx.indexIn(mText, mPos, QRegExp::CaretAtOffset);
+            if (idx < 0)
+                return "";
+            return rx.cap(1).toUpper();
+        }
+
+        QString testNextToken()
+        {
+            QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+\\-*/\\^<>=]|>=|<=|<>)\\s*");
+            int idx = rx.indexIn(mText, mPos);
             if (idx < 0)
                 return "";
             return rx.cap(1).toUpper();
@@ -166,10 +182,13 @@ private:
 
         QString nextToken()
         {
-            QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+\\-*/])\\s*");
+            QRegExp rx("(\\w+|[\\d.,]+|\\(|\\)|\"\\w+|:\\w+|[+\\-*/\\^<>=]|>=|<=|<>)\\s*");
             int idx = rx.indexIn(mText, mPos);
             if (idx < 0)
+            {
+                mPos = mText.length();
                 return "";
+            }
             mPos = idx + rx.matchedLength();
             QString word = rx.cap(1).toUpper();
             if (word == "(")
@@ -187,6 +206,8 @@ private:
             return word;
         }
 
+        bool atEnd() const {return mPos >= mText.length();}
+
         ScriptContext *parent() {return mParent;}
 
 //        void setVar(QString name, QString value) {mVars[name] = value;}
@@ -200,15 +221,17 @@ private:
 //        }
     };
 
+    QStack<QString> mStack;
     ScriptContext *context;
 
-
+    int opPriority(QString op);
     void createProcedures();
 
 private slots:
     void onTimer();
 
     void run();
+    QString evalExpr(QString expr);
     QString eval(QString token);
     void step();
     void stop();
