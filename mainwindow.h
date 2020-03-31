@@ -232,7 +232,7 @@ private slots:
 
     void run();
     QString evalExpr(QString expr);
-    QString eval(QString token);
+    QString eval(QString token, bool waitOperand=false, bool dontTestInfix=false);
     void step();
     void stop();
 

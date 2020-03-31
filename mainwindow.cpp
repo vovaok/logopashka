@@ -175,7 +175,9 @@ int MainWindow::opPriority(QString op)
         return 3;
     if (op == "^")
         return 4;
-    return 10;
+    if (op == "~") // unary minus
+        return 5;
+    return 0;
 }
 
 void MainWindow::onTimer()
@@ -247,7 +249,7 @@ QString MainWindow::evalExpr(QString expr)
     context = new ScriptContext(expr, context);
     do
     {
-        result = eval(context->nextToken());
+        result = eval(context->nextToken(), true);
         if (result.isEmpty())
             break;
         mStack << result;
@@ -257,31 +259,37 @@ QString MainWindow::evalExpr(QString expr)
     return result;
 }
 
-QString MainWindow::eval(QString token)
+QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
 {
     token = token.replace("Ё", "Е");
 
-//    qDebug() << "EVAL" << token;
+    qDebug() << "EARLY EVAL" << token << "DONT TEST" << dontTestInfix;
 
     QString infixOp = context->testInfixOp();
-//    if (infixOp == "-" && content->isOperand(token))
-    if (!infixOp.isEmpty())
+    if (!dontTestInfix && !infixOp.isEmpty() && !context->isInfixOp(token))
     {
-//        QString lastOp = mStack.isEmpty()? "": mStack.last();
+//        QString lastOp = mStack.isEmpty()? "": mStack.pop();
         QString lastOp = context->mLastOp;
         qDebug() << "infix" << infixOp << "lastOp" << lastOp;
-        if (opPriority(infixOp) >= opPriority(lastOp))
+        if (opPriority(infixOp) > opPriority(lastOp))
         {
             QString param = token;
+
             token = context->nextToken();
 //            mStack.push(token);
             context->mLastOp = token;
-            QString value = eval(param);
+
+
+            QString value = eval(param, true, true);
+
             mStack.push(value);
+
+
 //            context->mLastOp = token;
         }
         else
         {
+//            mStack.push(token);
         }
     }
 
@@ -289,7 +297,7 @@ QString MainWindow::eval(QString token)
 
     if (proc.contains(token))
     {
-//        context->mLastOp = token;
+        context->mLastOp = token;
         QStringList params;
         int pcnt = proc[token].paramCount();
         for (int i=params.count(); i<pcnt; i++)
@@ -298,22 +306,33 @@ QString MainWindow::eval(QString token)
             if (token == "ПОВТОР" && i == 1)
                 params << p.mid(1).chopped(1);
             else
-                params << eval(p);
+                params << eval(p, true);
         }
         qDebug() << "CALL" << token << params;
         QString result = proc[token](params);
         return result;
     }
+    if (token == "-" && mStack.isEmpty())
+    {
+        context->mLastOp = "~"; // unary minus
+        QString value = eval(context->nextToken(), true);
+        return QString::number(-value.toDouble());
+    }
     else if (context->isInfixOp(token))
     {
-        if (mStack.isEmpty() && (token == "-" || token == "+"))
-            mStack.push("0");
+//        if (mStack.isEmpty() && (token == "-" || token == "+"))
+//            mStack.push("0");
+        if (mStack.isEmpty())
+        {
+            qCritical("JOPPA");
+            return "0";
+        }
         QString param1 = mStack.pop();
-        QString param2 = eval(context->nextToken());
+        QString param2 = eval(context->nextToken(), true);
         while (opPriority(context->testInfixOp()) > opPriority(token))
         {
             mStack.push(param2);
-            param2 = eval(context->nextToken());
+            param2 = eval(context->nextToken());//, true);
         }
 //        qDebug() << "NEXT" << context->testNextToken();
         qDebug() << param1 << token << param2;
@@ -581,5 +600,10 @@ void MainWindow::createProcedures()
     proc["РАЗНОСТЬ"] = static_cast<std::function<QString(QString, QString)>>([=](QString a, QString b)
     {
         return QString::number(a.toDouble() - b.toDouble());
+    });
+
+    proc["МИНУС"] = static_cast<std::function<QString(QString)>>([=](QString x)
+    {
+        return QString::number(-x.toDouble());
     });
 }
