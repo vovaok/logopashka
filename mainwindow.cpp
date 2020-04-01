@@ -263,41 +263,34 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
 {
     token = token.replace("Ё", "Е");
 
-    qDebug() << "EARLY EVAL" << token << "DONT TEST" << dontTestInfix;
+    qDebug() << "EARLY EVAL" << token << "WAITOP" << waitOperand << "DONT TEST" << dontTestInfix;
 
     QString infixOp = context->testInfixOp();
     if (!dontTestInfix && !infixOp.isEmpty() && !context->isInfixOp(token))
     {
-//        QString lastOp = mStack.isEmpty()? "": mStack.pop();
-        QString lastOp = context->mLastOp;
+        QString lastOp = mStack.last();
+//        QString lastOp = context->mLastOp;
         qDebug() << "infix" << infixOp << "lastOp" << lastOp;
         if (opPriority(infixOp) > opPriority(lastOp))
         {
             QString param = token;
-
             token = context->nextToken();
-//            mStack.push(token);
-            context->mLastOp = token;
-
-
-            QString value = eval(param, true, true);
-
-            mStack.push(value);
-
-
 //            context->mLastOp = token;
-        }
-        else
-        {
-//            mStack.push(token);
+            QString value = eval(param, true, true);
+            mStack.push(value);
+            waitOperand = false;
         }
     }
 
-    qDebug() << "EVAL" << token;
+    if (token == "-" && waitOperand)
+        token = "~"; // unary minus
+
+    qDebug() << "EVAL" << token << mStack;
 
     if (proc.contains(token))
     {
-        context->mLastOp = token;
+        mStack.push(token);
+//        context->mLastOp = token;
         QStringList params;
         int pcnt = proc[token].paramCount();
         for (int i=params.count(); i<pcnt; i++)
@@ -307,58 +300,74 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
                 params << p.mid(1).chopped(1);
             else
                 params << eval(p, true);
+//            context->mLastOp = "";
         }
         qDebug() << "CALL" << token << params;
         QString result = proc[token](params);
+        mStack.pop();
         return result;
     }
-    if (token == "-" && mStack.isEmpty())
+    if (token == "~")
     {
-        context->mLastOp = "~"; // unary minus
-        QString value = eval(context->nextToken(), true);
+        mStack.push(token);
+//        context->mLastOp = "~"; // unary minus
+        QString value = eval(context->nextToken(), true, true);
+        mStack.pop();
         return QString::number(-value.toDouble());
     }
     else if (context->isInfixOp(token))
     {
-//        if (mStack.isEmpty() && (token == "-" || token == "+"))
-//            mStack.push("0");
         if (mStack.isEmpty())
         {
             qCritical("JOPPA");
             return "0";
         }
+//        context->mLastOp = token;
         QString param1 = mStack.pop();
+        mStack.push(token);
         QString param2 = eval(context->nextToken(), true);
         while (opPriority(context->testInfixOp()) > opPriority(token))
         {
             mStack.push(param2);
-            param2 = eval(context->nextToken());//, true);
+            param2 = eval(context->nextToken());
         }
-//        qDebug() << "NEXT" << context->testNextToken();
+
         qDebug() << param1 << token << param2;
-//        qDebug() << "pop" << mStack.pop();
+        QString result;
         if (token == "+")
-            return QString::number(param1.toDouble() + param2.toDouble());
+            result = QString::number(param1.toDouble() + param2.toDouble());
         else if (token == "-")
-            return QString::number(param1.toDouble() - param2.toDouble());
+            result = QString::number(param1.toDouble() - param2.toDouble());
         else if (token == "*")
-            return QString::number(param1.toDouble() * param2.toDouble());
+            result = QString::number(param1.toDouble() * param2.toDouble());
         else if (token == "/")
-            return QString::number(param1.toDouble() / param2.toDouble());
+            result = QString::number(param1.toDouble() / param2.toDouble());
         else if (token == "^")
-            return QString::number(pow(param1.toDouble(), param2.toDouble()));
+            result = QString::number(pow(param1.toDouble(), param2.toDouble()));
         else if (token == "=")
-            return qFuzzyCompare(param1.toDouble(), param2.toDouble())? "1": "0";
+            result = qFuzzyCompare(param1.toDouble(), param2.toDouble())? "1": "0";
         else if (token == "<>")
-            return qFuzzyCompare(param1.toDouble(), param2.toDouble())? "0": "1";
+            result = qFuzzyCompare(param1.toDouble(), param2.toDouble())? "0": "1";
         else if (token == "<")
-            return (param1.toDouble() < param2.toDouble())? "1": "0";
+            result = (param1.toDouble() < param2.toDouble())? "1": "0";
         else if (token == ">")
-            return (param1.toDouble() > param2.toDouble())? "1": "0";
+            result = (param1.toDouble() > param2.toDouble())? "1": "0";
         else if (token == "<=")
-            return (param1.toDouble() <= param2.toDouble())? "1": "0";
+            result = (param1.toDouble() <= param2.toDouble())? "1": "0";
         else if (token == ">=")
-            return (param1.toDouble() >= param2.toDouble())? "1": "0";
+            result = (param1.toDouble() >= param2.toDouble())? "1": "0";
+
+        mStack.pop();
+
+        while ((opPriority(context->testInfixOp()) <= opPriority(token)) && (opPriority(context->testInfixOp()) >= opPriority(mStack.last())))
+        {
+            qDebug() << "PROVERKA:" << "next" << context->testInfixOp() << "cur" << token << "prev" << mStack.last();
+            if (context->testInfixOp().isEmpty())
+                break;
+            mStack.push(result);
+            result = eval(context->nextToken());
+        }
+        return result;
     }
     else if (token.startsWith("\""))
     {
@@ -389,34 +398,43 @@ void MainWindow::step()
 //        return;
     }
 
-    QString token = context->nextToken();
+//    QString token = context->testNextToken();
 
-    if (token.isEmpty())
-    {
-        ScriptContext *oldContext = context;
-        context = context->parent();
-//        if (context && !oldContext->mResult.isEmpty())
-//            context->mCurParams << oldContext->mResult;
-        delete oldContext;
-        if (!context)
-            stop();
-    }
+//    if (token.isEmpty())
+//    {
+//        ScriptContext *oldContext = context;
+//        context = context->parent();
+//        delete oldContext;
+//        if (!context)
+//            stop();
+//    }
 
    // qDebug() << "RUN" << token;
 
     if (context)
     {
-//        if (!context->mLastOp.isEmpty())
+        QString result;
+//        do
 //        {
-//            qDebug() << "last token" << context->mLastOp << mStack;
-//            token = context->mLastOp;
-////            if (proc[token].paramCount() == context->mCurParams.count())
+//            result = eval(context->nextToken());
+//            if (result.isEmpty())
+//                break;
+//            mStack << result;
+//            qDebug() << "stack:" << mStack;
+//        } while (!context->atEnd());
 
-//        }
+        result = eval(context->nextToken());
 
-
-        QString result = eval(token);
-        qDebug() << "result =" << result;
+        if (context->atEnd())
+        {
+            ScriptContext *oldContext = context;
+            context = context->parent();
+            delete oldContext;
+            if (!context)
+                stop();
+        }
+//        QString result = eval(token);
+//        qDebug() << "result =" << result;
 
     }
 }

@@ -142,7 +142,7 @@ private:
         ScriptContext *mParent;
 
     public:
-        QString mLastOp;
+//        QString mLastOp;
 //        QStringList mStack;
 
         ScriptContext(QString text, ScriptContext *parent=nullptr) :
