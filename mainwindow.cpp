@@ -366,7 +366,7 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
 
         mStack.pop();
 
-        while ((opPriority(context->testInfixOp()) <= opPriority(token)) && (opPriority(context->testInfixOp()) >= opPriority(mStack.last())))
+        while ((opPriority(context->testInfixOp()) <= opPriority(token)) && (opPriority(context->testInfixOp()) > opPriority(mStack.last())))
         {
 //            qDebug() << "PROVERKA:" << "next" << context->testInfixOp() << "cur" << token << "prev" << mStack.last();
             if (context->testInfixOp().isEmpty())
@@ -443,14 +443,16 @@ void MainWindow::step()
 
         result = eval(context->nextToken());
 
-        if (context->atEnd())
+        if (context && context->atEnd())
         {
             ScriptContext *oldContext = context;
             context = context->parent();
             delete oldContext;
-            if (!context)
-                stop();
         }
+
+        if (!context)
+            stop();
+
 //        QString result = eval(token);
 //        qDebug() << "result =" << result;
 
@@ -627,6 +629,22 @@ void MainWindow::createProcedures()
             context = new ScriptContext(list, context);
     };
 
+    proc["СТОП"] = [=]()
+    {
+        ScriptContext *oldContext = context;
+        context = context->parent();
+        delete oldContext;
+    };
+
+    proc["ВЫХОД"] = static_cast<std::function<QString(QString)>>([=](QString result)
+    {
+//        QString result = value;
+        ScriptContext *oldContext = context;
+        context = context->parent();
+        delete oldContext;
+        return result;
+    });
+
     proc["ИСПОЛНИТЬ"] = [=](QString name, QString value)
     {
         setVar(name, value);
@@ -653,4 +671,17 @@ void MainWindow::createProcedures()
     {
         return QString::number(-x.toDouble());
     });
+
+    proc["ЭТО"] = [=]()
+    {
+        QString procName = context->nextToken();
+        QStringList params;
+        while (context->testNextToken().startsWith(":"))
+            params << context->nextToken();
+        QString text = "";
+        while (!context->atEnd() && context->testNextToken() != "КОНЕЦ")
+            text += context->nextToken() + " ";
+        qDebug() << "name" << procName << "params" << params << "text:";
+        qDebug() << text;
+    };
 }
