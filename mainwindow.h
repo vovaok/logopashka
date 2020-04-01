@@ -138,7 +138,7 @@ private:
     private:
         int mPos;
         QString mText;
-//        QMap<QString, QString> mVars;
+//        QMap<QString, QString> mLocalVars;
         ScriptContext *mParent;
 
     public:
@@ -238,6 +238,7 @@ private slots:
 
     void listPrograms();
     void save();
-    void load(QString name);
+    void open(QString name);
+    QString load(QString name);
 };
 #endif // MAINWINDOW_H

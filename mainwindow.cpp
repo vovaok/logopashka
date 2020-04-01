@@ -240,6 +240,7 @@ void MainWindow::run()
         enableBtn->setChecked(true);
     mStack.clear();
     context = new ScriptContext(text, context);
+    qDebug() << "*** RUN ***";
 }
 
 QString MainWindow::evalExpr(QString expr)
@@ -263,14 +264,17 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
 {
     token = token.replace("Ё", "Е");
 
-    qDebug() << "EARLY EVAL" << token << "WAITOP" << waitOperand << "DONT TEST" << dontTestInfix;
+//    qDebug() << "EARLY EVAL" << token << "WAITOP" << waitOperand << "DONT TEST" << dontTestInfix;
+
+    if (proc.contains(token))
+        dontTestInfix = true;
 
     QString infixOp = context->testInfixOp();
     if (!dontTestInfix && !infixOp.isEmpty() && !context->isInfixOp(token))
     {
         QString lastOp = mStack.last();
 //        QString lastOp = context->mLastOp;
-        qDebug() << "infix" << infixOp << "lastOp" << lastOp;
+//        qDebug() << "infix" << infixOp << "lastOp" << lastOp;
         if (opPriority(infixOp) > opPriority(lastOp))
         {
             QString param = token;
@@ -285,7 +289,7 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     if (token == "-" && waitOperand)
         token = "~"; // unary minus
 
-    qDebug() << "EVAL" << token << mStack;
+//    qDebug() << "EVAL" << token << mStack;
 
     if (proc.contains(token))
     {
@@ -302,8 +306,9 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
                 params << eval(p, true);
 //            context->mLastOp = "";
         }
-        qDebug() << "CALL" << token << params;
+        qDebug() << ">>" << token << params;
         QString result = proc[token](params);
+        qDebug() << "<<" << result;
         mStack.pop();
         return result;
     }
@@ -332,7 +337,7 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
             param2 = eval(context->nextToken());
         }
 
-        qDebug() << param1 << token << param2;
+//        qDebug() << param1 << token << param2;
         QString result;
         if (token == "+")
             result = QString::number(param1.toDouble() + param2.toDouble());
@@ -357,11 +362,13 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
         else if (token == ">=")
             result = (param1.toDouble() >= param2.toDouble())? "1": "0";
 
+        qDebug() << param1 << token << param2 << "=" << result;
+
         mStack.pop();
 
         while ((opPriority(context->testInfixOp()) <= opPriority(token)) && (opPriority(context->testInfixOp()) >= opPriority(mStack.last())))
         {
-            qDebug() << "PROVERKA:" << "next" << context->testInfixOp() << "cur" << token << "prev" << mStack.last();
+//            qDebug() << "PROVERKA:" << "next" << context->testInfixOp() << "cur" << token << "prev" << mStack.last();
             if (context->testInfixOp().isEmpty())
                 break;
             mStack.push(result);
@@ -385,6 +392,17 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     {
         QString expr = token.mid(1).chopped(1);
         return evalExpr(expr);
+    }
+    else if (mPrograms.contains(token))
+    {
+        qDebug() << "found program" << token;
+        QString text = load(token).trimmed();
+        QString firstline = token + ":";
+        if (text.startsWith(firstline, Qt::CaseInsensitive))
+            text = text.remove(0, firstline.length()).trimmed();
+        qDebug() << text;
+        //editor->toPlainText();
+        context = new ScriptContext(text, context);
     }
 
     return token; // x3 40 delat, pust budet token
@@ -454,6 +472,7 @@ void MainWindow::stop()
     editor->setReadOnly(false);
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(true);
+    qDebug() << "*** STOP ***";
 }
 
 void MainWindow::listPrograms()
@@ -493,8 +512,9 @@ void MainWindow::listPrograms()
         connect(btn, &QPushButton::clicked, [=]()
         {
             save();
-            load(programName);
+            open(programName);
         });
+        mPrograms << programName.toUpper();
         mProgramBtns[programName] = btn;
         mProgramLayout->addWidget(btn);
     }
@@ -503,7 +523,7 @@ void MainWindow::listPrograms()
     mProgramLayout->addWidget(mSpacer, 100);
 
     if (mProgramName.isEmpty())
-        load("main");
+        open("main");
 }
 
 void MainWindow::save()
@@ -539,18 +559,27 @@ void MainWindow::save()
         listPrograms();
 }
 
-void MainWindow::load(QString name)
+void MainWindow::open(QString name)
+{
+    QString filename = "programs/" + name + ".txt";
+    if (!QFile::exists(filename))
+        return;
+    mProgramName = name;
+    QString text = load(name);
+    editor->setPlainText(text);
+    mProgramBtns[name]->setChecked(true);
+}
+
+QString MainWindow::load(QString name)
 {
     QString filename = "programs/" + name + ".txt";
     QFile file(filename);
     if (!file.exists())
-        return;
-    mProgramName = name;
+        return QString();
     file.open(QIODevice::ReadOnly);
     QString text = QString::fromUtf8(file.readAll());
     file.close();
-    editor->setPlainText(text);
-    mProgramBtns[name]->setChecked(true);
+    return text;
 }
 
 
