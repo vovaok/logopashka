@@ -8,8 +8,6 @@ CodeEditor::CodeEditor(QWidget *parent) :
 
 void CodeEditor::highlightLine(int num, QColor lineColor)
 {
-    QList<QTextEdit::ExtraSelection> extraSelections;
-
     if (num >= 0)
     {
         QTextEdit::ExtraSelection selection;
@@ -21,28 +19,52 @@ void CodeEditor::highlightLine(int num, QColor lineColor)
         cur.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor, num);
         selection.cursor = cur;
         selection.cursor.clearSelection();
-        extraSelections.append(selection);
+        m_extraSelections.append(selection);
     }
 
-    setExtraSelections(extraSelections);
+    setExtraSelections(m_extraSelections);
 }
 
-void CodeEditor::highlightCurrentLine()
+void CodeEditor::highlightText(int pos1, int pos2, QColor color, QColor lineColor)
 {
-    QList<QTextEdit::ExtraSelection> extraSelections;
+    if (pos1 >= 0)
+    {
+        QTextEdit::ExtraSelection selection;
+        selection.format.setBackground(lineColor);
+//        selection.format.setProperty(QTextFormat::FullWidthSelection, true);
+        QTextCursor cur = textCursor();
+        cur.setPosition(pos1);
+        selection.cursor = cur;
+        selection.cursor.clearSelection();
+        selection.format.setProperty(QTextFormat::FullWidthSelection, true);
+        m_extraSelections.append(selection);
 
+        selection.format.setBackground(color);
+        selection.format.setProperty(QTextFormat::FullWidthSelection, false);
+        selection.cursor.setPosition(pos2, QTextCursor::KeepAnchor);
+        m_extraSelections.append(selection);
+    }
+
+    setExtraSelections(m_extraSelections);
+}
+
+void CodeEditor::highlightCurrentLine(QColor lineColor)
+{
     if (!isReadOnly())
     {
         QTextEdit::ExtraSelection selection;
-
-        QColor lineColor = QColor(Qt::white);
-
         selection.format.setBackground(lineColor);
         selection.format.setProperty(QTextFormat::FullWidthSelection, true);
         selection.cursor = textCursor();
         selection.cursor.clearSelection();
-        extraSelections.append(selection);
+        m_extraSelections.append(selection);
     }
 
-    setExtraSelections(extraSelections);
+    setExtraSelections(m_extraSelections);
+}
+
+void CodeEditor::clearHighlights()
+{
+    m_extraSelections.clear();
+    setExtraSelections(m_extraSelections);
 }

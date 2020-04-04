@@ -10,7 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("Robot");
-//    showFullScreen();
+    showFullScreen();
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
@@ -216,7 +216,7 @@ void MainWindow::onTimer()
     if (!isRunning())
     {
         float v = joy->y();
-        float w = joy->x();// * 10;
+        float w = -joy->x();// * 10;
         device->setControl(v*3, w*3);
     }
 
@@ -289,7 +289,14 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     if (token == "-" && waitOperand)
         token = "~"; // unary minus
 
-//    qDebug() << "EVAL" << token << mStack;
+    qDebug() << "EVAL" << token << mStack;
+
+    if (mPrograms.contains(token) && !proc.contains(token))
+    {
+        QStringList params;
+        params << token;
+        proc["ЗАГРУЗИТЬ"](params);
+    }
 
     if (proc.contains(token))
     {
@@ -300,12 +307,21 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
         for (int i=params.count(); i<pcnt; i++)
         {
             QString p = context->nextToken();
-            if (token == "ПОВТОР" && i == 1)
-                params << p.mid(1).chopped(1);
+            if ((token == "ПОВТОР" || token == "ЕСЛИ" || token == "ЕСЛИИНАЧЕ") && i > 0)
+            {
+                if (p.startsWith("("))
+                    p = p.mid(1);
+                if (p.endsWith(")"))
+                    p = p.chopped(1);
+                params << p;
+            }
             else
                 params << eval(p, true);
 //            context->mLastOp = "";
         }
+//        QStringList params;
+//        for (int i=0; i<pcnt; i++)
+//            params << mStack.pop();
         qDebug() << ">>" << token << params;
         QString result = proc[token](params);
         qDebug() << "<<" << result;
@@ -391,18 +407,8 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     else if (token.startsWith("(") && token.endsWith(")"))
     {
         QString expr = token.mid(1).chopped(1);
-        return evalExpr(expr);
-    }
-    else if (mPrograms.contains(token))
-    {
-        qDebug() << "found program" << token;
-        QString text = load(token).trimmed();
-        QString firstline = token + ":";
-        if (text.startsWith(firstline, Qt::CaseInsensitive))
-            text = text.remove(0, firstline.length()).trimmed();
-        qDebug() << text;
-        //editor->toPlainText();
-        context = new ScriptContext(text, context);
+        evalExpr(expr);
+        return mStack.pop();
     }
 
     return token; // x3 40 delat, pust budet token
@@ -441,13 +447,37 @@ void MainWindow::step()
 //            qDebug() << "stack:" << mStack;
 //        } while (!context->atEnd());
 
-        result = eval(context->nextToken());
+        QString ctxName;
+        ScriptContext *curctx = context;
+        do
+        {
+            ctxName = curctx->name;
+            curctx = curctx->parent();
+        } while(ctxName.isEmpty() && curctx);
+        if (ctxName.isEmpty())
+            ctxName = "MAIN";
+
+        if (ctxName != mProgramName)
+        {
+            open(ctxName);
+        }
+
+        QColor selColor(139, 237, 139);
+        QColor lineColor(139, 227, 237, 192);
+        editor->clearHighlights();
+
+        QString token = context->nextToken();
+        editor->highlightText(context->lastPos(), context->curPos(), selColor, lineColor);
+        result = eval(token);
 
         if (context && context->atEnd())
         {
-            ScriptContext *oldContext = context;
-            context = context->parent();
-            delete oldContext;
+            if (!context->iterateLoop())
+            {
+                ScriptContext *oldContext = context;
+                context = context->parent();
+                delete oldContext;
+            }
         }
 
         if (!context)
@@ -468,7 +498,7 @@ void MainWindow::stop()
         context = context->parent();
         delete temp;
     }
-    editor->highlightLine(-1);
+    editor->clearHighlights();
     device->stop();
     enableBtn->setChecked(false);
     editor->setReadOnly(false);
@@ -507,8 +537,8 @@ void MainWindow::listPrograms()
 
     for (QFileInfo &file: files)
     {
-        QString programName = file.baseName();
-        QPushButton *btn = new QPushButton(programName);
+        QString programName = file.baseName().toUpper();
+        QPushButton *btn = new QPushButton(file.baseName());
         btn->setCheckable(true);
         btn->setAutoExclusive(true);
         connect(btn, &QPushButton::clicked, [=]()
@@ -519,20 +549,24 @@ void MainWindow::listPrograms()
         mPrograms << programName.toUpper();
         mProgramBtns[programName] = btn;
         mProgramLayout->addWidget(btn);
+
+//        QStringList params;
+//        params << programName;
+//        proc["ЗАГРУЗИТЬ"](params);
     }
     if (mProgramBtns.contains(mProgramName))
         mProgramBtns[mProgramName]->setChecked(true);
     mProgramLayout->addWidget(mSpacer, 100);
 
     if (mProgramName.isEmpty())
-        open("main");
+        open("MAIN");
 }
 
 void MainWindow::save()
 {
     QString text = editor->toPlainText();
     QString firstLine = text.split("\n").first().trimmed();
-    QRegExp rx("^(\\w+):$", Qt::CaseInsensitive);
+    QRegExp rx("^ЭТО\\s+(\\w+)", Qt::CaseInsensitive);
     if (firstLine.indexOf(rx) != -1)
     {
         mProgramName = rx.cap(1);
@@ -624,16 +658,39 @@ void MainWindow::createProcedures()
 
     proc["ПОВТОР"] = [=](QString count, QString list)
     {
-        int cnt = count.toInt();
-        for (int i=0; i<cnt; i++)
+        context = new ScriptContext(list, context);
+        context->mRepMax = count.toInt();
+        context->mRepCount = 1;
+    };
+
+    proc["ЕСЛИ"] = [=](QString cond, QString list)
+    {
+        if (cond.toInt())
             context = new ScriptContext(list, context);
+    };
+
+    proc["ЕСЛИИНАЧЕ"] = [=](QString cond, QString list1, QString list2)
+    {
+        if (cond.toInt())
+            context = new ScriptContext(list1, context);
+        else
+            context = new ScriptContext(list2, context);
     };
 
     proc["СТОП"] = [=]()
     {
-        ScriptContext *oldContext = context;
-        context = context->parent();
-        delete oldContext;
+        do
+        {
+            ScriptContext *oldContext = context;
+            context = context->parent();
+            delete oldContext;
+        } while (context && context->name.isEmpty());
+        if (context)
+        {
+            ScriptContext *oldContext = context;
+            context = context->parent();
+            delete oldContext;
+        }
     };
 
     proc["ВЫХОД"] = static_cast<std::function<QString(QString)>>([=](QString result)
@@ -675,13 +732,64 @@ void MainWindow::createProcedures()
     proc["ЭТО"] = [=]()
     {
         QString procName = context->nextToken();
-        QStringList params;
+        QStringList paramNames;
         while (context->testNextToken().startsWith(":"))
-            params << context->nextToken();
+            paramNames << context->nextToken();
         QString text = "";
-        while (!context->atEnd() && context->testNextToken() != "КОНЕЦ")
-            text += context->nextToken() + " ";
-        qDebug() << "name" << procName << "params" << params << "text:";
+        int offset = 0;
+        while (!context->atEnd())
+        {
+            QString token = context->nextToken();
+            if (!offset)
+                offset = context->lastPos();
+            if (token == "КОНЕЦ")
+                break;
+            text += token.toUpper() + " ";
+        }
+        qDebug() << "name" << procName << "params" << paramNames << "text:";
         qDebug() << text;
+        int pcount = paramNames.count();
+        proc[procName].setGeneric(pcount, [=](QStringList params)
+        {
+            QString textcopy = text;
+            for (int i=0; i<pcount; i++)
+                textcopy.replace(paramNames[i], params[i]);
+            qDebug() << "STACK" << mStack;
+            ScriptContext *oldContext = context;
+            ScriptContext *newContext = new ScriptContext(textcopy, context);
+            newContext->mTextOffset = offset;
+            newContext->name = procName;
+            context = newContext;
+            if (mStack.size() > 1) // => wait result => eval here
+            {
+                QString result;
+                do
+                {
+                    result = eval(context->nextToken());
+                } while (context == newContext && !context->atEnd());
+                if (context != oldContext)
+                {
+                    delete context;
+                    context = oldContext;
+                }
+                return result;
+            }
+            return QString();
+        });
+    };
+
+    proc["ЗАГРУЗИТЬ"] = [=](QString name)
+    {
+        qDebug() << "load program" << name << "...";
+        QString text = load(name).trimmed();
+        ScriptContext *oldContext = context;
+        context = new ScriptContext(text);
+        do
+        {
+            eval(context->nextToken());
+        } while (!context->atEnd());
+        delete context;
+        context = oldContext;
+        qDebug() << "done";
     };
 }

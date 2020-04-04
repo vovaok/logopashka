@@ -11,14 +11,16 @@ public:
     explicit CodeEditor(QWidget *parent=nullptr);
 
     void highlightLine(int num, QColor lineColor = Qt::yellow);
+    void highlightText(int pos1, int pos2, QColor color = Qt::green, QColor lineColor = Qt::yellow);
 
 public slots:
-    void highlightCurrentLine();
+    void highlightCurrentLine(QColor lineColor = Qt::white);
+    void clearHighlights();
 
 protected:
 
 private:
-
+    QList<QTextEdit::ExtraSelection> m_extraSelections;
 };
 
 #endif // CODEEDITOR_H
