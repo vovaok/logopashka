@@ -230,6 +230,7 @@ void MainWindow::onTimer()
 
 void MainWindow::run()
 {
+    save();
     editor->setReadOnly(true);
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(false);
@@ -469,6 +470,12 @@ void MainWindow::step()
         QString token = context->nextToken();
         editor->highlightText(context->lastPos(), context->curPos(), selColor, lineColor);
         result = eval(token);
+
+        QTextCursor cur = editor->textCursor();
+        cur.setPosition(context->lastPos());
+        editor->setTextCursor(cur);
+        editor->ensureCursorVisible();
+//        editor->centerCursor();
 
         if (context && context->atEnd())
         {
