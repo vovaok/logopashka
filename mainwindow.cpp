@@ -6,7 +6,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow),
       mProcessing(false),
       mDebug(false),
-      mSpacer(nullptr)
+      mSpacer(nullptr),
+      scene(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("Robot");
@@ -87,8 +88,42 @@ MainWindow::MainWindow(QWidget *parent)
     connect(btnClose, &QPushButton::clicked, this, &MainWindow::close);
 
 
+    scene = new Scene;
+    scene->setObjectName("scene");
+
     stack = new QStackedWidget;
     stack->addWidget(editor);
+    stack->addWidget(scene);
+
+    QPushButton *btnScene = new QPushButton("Model");
+    btnScene->setCheckable(true);
+    connect(btnScene, &QPushButton::clicked, [=](bool checked)
+    {
+        if (checked)
+            stack->setCurrentWidget(scene);
+        else
+            stack->setCurrentWidget(editor);
+    });
+
+    QPushButton *btnPD = new QPushButton("ПО");
+    btnPD->setObjectName("penDown");
+    btnPD->setCheckable(true);
+    btnPD->setAutoExclusive(true);
+    connect(btnPD, &QPushButton::clicked, scene, &Scene::penDown);
+    QPushButton *btnPU = new QPushButton("ПП");
+    btnPU->setObjectName("penUp");
+    btnPU->setFixedWidth(100);
+    btnPU->setCheckable(true);
+    btnPU->setAutoExclusive(true);
+    btnPU->setChecked(true);
+    connect(btnPU, &QPushButton::clicked, scene, &Scene::penUp);
+    QGroupBox *penbox = new QGroupBox();
+    QHBoxLayout *penlay = new QHBoxLayout;
+    penbox->setLayout(penlay);
+    penlay->addWidget(btnPD);
+    penlay->addWidget(btnPU);
+
+//    stack->setCurrentIndex(1);
 
     QHBoxLayout *btnLay = new QHBoxLayout;
     btnLay->addWidget(btnSave);
@@ -98,7 +133,9 @@ MainWindow::MainWindow(QWidget *parent)
     QVBoxLayout *controlLay = new QVBoxLayout;
     controlLay->addWidget(btnPlay);
     controlLay->addWidget(stopBtn);
+    controlLay->addWidget(penbox);
     controlLay->addWidget(joy, 1);
+    controlLay->addWidget(btnScene);
     controlLay->addWidget(enableBtn);
 
     QGridLayout *lay = new QGridLayout;
@@ -218,7 +255,11 @@ void MainWindow::onTimer()
         float v = joy->y();
         float w = -joy->x();// * 10;
         device->setControl(v*3, w*3);
+        if (scene && scene->isVisible())
+            scene->setControl(v*3, w*3);
     }
+
+    scene->integrate(dt);
 
     bool conn = device->isValid() && device->isPresent();
     connLed->setState(conn);
@@ -226,6 +267,10 @@ void MainWindow::onTimer()
         connlabel->setText("connected");
     else
         connlabel->setText("disconnected");
+
+    scene->update();
+    if (scene->isVisible())
+        joy->update(); // FUCKING HACK
 }
 
 void MainWindow::run()
@@ -313,7 +358,7 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
                 if (p.startsWith("("))
                     p = p.mid(1);
                 if (p.endsWith(")"))
-                    p = p.chopped(1);
+                    p = p.left(p.size()-1);//chopped(1);
                 params << p;
             }
             else
@@ -407,7 +452,7 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     }
     else if (token.startsWith("(") && token.endsWith(")"))
     {
-        QString expr = token.mid(1).chopped(1);
+        QString expr = token.mid(1, token.size()-2);//.chopped(1);
         evalExpr(expr);
         return mStack.pop();
     }

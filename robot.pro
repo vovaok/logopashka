@@ -11,7 +11,7 @@ CONFIG += c++14
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/onb/onb.pri)
 #include($$COMPONENTS/usbhid/usbhid.pri)
-#include($$COMPONENTS/panel3d/panel3d.pri)
+include($$COMPONENTS/panel3d/panel3d.pri)
 #include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/megawidgets/megawidgets.pri)
 
@@ -27,13 +27,15 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     robot.cpp \
-    codeeditor.cpp
+    codeeditor.cpp \
+    scene.cpp
 
 HEADERS += \
     mainwindow.h \
-    matrix.h \
+#    matrix.h \
     robot.h \
-    codeeditor.h
+    codeeditor.h \
+    scene.h
 
 #win32: {
 #SOURCES += spacemouse.cpp

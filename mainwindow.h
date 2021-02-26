@@ -9,12 +9,14 @@
 #include "joystickwidget.h"
 #include "led.h"
 #include "robot.h"
+#include "scene.h"
 #ifdef Q_OS_WIN
 //#include "spacemouse.h"
 #endif
 //#include <QRotationSensor>
 
 #include "codeeditor.h"
+#include <functional>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -42,6 +44,8 @@ private:
 
     ObjnetMaster *oviMaster;
     Robot *device;
+
+    Scene *scene;
 
 //    #ifdef Q_OS_WIN
 //    SpaceMouse *joy3D;

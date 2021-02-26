@@ -1,24 +1,37 @@
 #include "scene.h"
 
-Scene::Scene()
+Scene::Scene() :
+    m_v(0), m_w(0),
+    m_vt(0), m_wt(0),
+    m_wL(0), m_wR(0),
+    m_phiL(0), m_phiR(0),
+    m_x(0), m_y(0), m_phi(0),
+    mPenEnabled(false)
 {
-    //float L[6] = {0.15, 0.3, 0.2}
-
-//    setGeometry(0, 0, 256, 256);
     setMinimumSize(256, 256);
     setBackColor(QColor(240, 240, 240));
-    //setViewType(QPanel3D::fly);
+//    setViewType(QPanel3D::fly);
     setAutoUpdate(false);
-    root()->showAxes(true);
+//    root()->showAxes(true);
 
     mMainCam = new Camera3D(this);
-    mMainCam->setPosition(QVector3D(-180, 60, 60));
-    mMainCam->setTarget(QVector3D(0, 0, 60));
+    mMainCam->setPosition(QVector3D(-60, 20, 20));
+    mMainCam->setTarget(QVector3D(0, 0, 5));
     mMainCam->setTopDir(QVector3D(0, 0, 1));
     mMainCam->setDistanceLimit(500);
     mMainCam->setZoom(1);
 
     setCamera(mMainCam);
+
+    mFollowingCam = new Camera3D(this);
+    mFollowingCam->setPosition(QVector3D(-50, 50, 30));
+    mFollowingCam->setTarget(QVector3D(0, 0, 5));
+    mFollowingCam->setTopDir(QVector3D(0, 0, 1));
+    mFollowingCam->setDistanceLimit(500);
+    mFollowingCam->setZoom(1);
+
+//    setCamera(mFollowingCam);
+
 
     Light3D *fonarik = new Light3D(root());
     fonarik->setPosition(QVector3D(0, 0, 5000));
@@ -55,86 +68,135 @@ Scene::Scene()
     }
     p.end();
 
+    mPlot = new DynamicTexture(this, QSize(2048, 2048));
+
     mFloor = new Primitive3D(root());
     mFloor->setPlane(QVector3D(100, 0, 0), QVector3D(0, 100, 0));
     mFloor->setDetalization(200, 200);
     mFloor->setColor(QColor(255, 255, 255));
     mFloor->setTexture(new StaticTexture(this, img));
 
+    Primitive3D *sheet = new Primitive3D(mFloor);
+    sheet->setPlane(QVector3D(100, 0, 0), QVector3D(0, 100, 0));
+    sheet->setDetalization(100, 100);
+    sheet->setTexture(mPlot);
+    sheet->setZPos(0.1f);
+
     mBase = new Mesh3D(root());
-    mBase->loadModel(":/models/0101.wrl");
-    mBase->mesh()->translate(QVector3D(-88, -145.8, 0));
-    mBase->mesh()->rotate(90, QVector3D(0, -1, 0));
-    mBase->updateModel();
+    mBase->loadModel(":/model/robot.wrl");
+    mBase->setZPos(2.5f);
+    mBase->setZOrient(180);
+//    mBase->mesh()->rotate(90, QVector3D(0, -1, 0));
+    //    mBase->updateModel();
 
-    mLink[0] = new Mesh3D(mBase);
-    mLink[0]->loadModel(":/models/0010.wrl");
-    mLink[0]->mesh()->translate(QVector3D(1, -11.4, -11.8));
-    mLink[0]->mesh()->rotate(90, QVector3D(0, -1, 0));
-    mLink[0]->mesh()->rotate(180, QVector3D(0, 0, 1));
-    mLink[0]->updateModel();
-    mLink[0]->setPosition(0, 0, 10);
+    mWheelL = new Mesh3D(mBase);
+    mWheelL->loadModel(":/model/wheel.wrl");
+    mWheelL->setPosition(0, -5, 0);
+    mWheelL->setXRot(90);
 
-    mLink[1] = new Mesh3D(mLink[0]);
-    mLink[1]->loadModel(":/models/0020.wrl");
-    mLink[1]->mesh()->translate(QVector3D(16.1, -22.3, 7.3));
-    mLink[1]->mesh()->rotate(90, QVector3D(1, 0, 0));
-    mLink[1]->updateModel();
-    mLink[1]->setPosition(0, 0, 16);
-    mLink[1]->setOrient(90, 0, 90);
+    mWheelR = new Mesh3D(mBase);
+    mWheelR->loadModel(":/model/wheel.wrl");
+    mWheelR->setPosition(0, 5, 0);
+    mWheelR->setXRot(-90);
 
-    mLink[2] = new Mesh3D(mLink[1]);
-    mLink[2]->loadModel(":/models/0030.wrl");
-    mLink[2]->mesh()->translate(QVector3D(-181.75, -69.8, 0));
-    mLink[2]->mesh()->rotate(90, QVector3D(-1, 0, 0));
-    mLink[2]->updateModel();
-    mLink[2]->setPosition(34, 0, 0);
-    mLink[2]->setOrient(180, 0, 0);
+    mActu = new Mesh3D(mBase);
+    mActu->loadModel(":/model/actuator.wrl");
+    mActu->setPosition(8.5, 0, 0);
 
-    mLink[3] = new Mesh3D(mLink[2]);
-    mLink[3]->loadModel(":/models/0040.wrl");
-    mLink[3]->mesh()->translate(QVector3D(0.3, -9, -8.25));
-    mLink[3]->mesh()->rotate(90, QVector3D(0, -1, 0));
-    mLink[3]->mesh()->rotate(90, QVector3D(0, 0, 1));
-    mLink[3]->updateModel();
-    mLink[3]->setPosition(21.5, 0, 0);
-    mLink[3]->setOrient(0, 90, 0);
+    mPen = new Primitive3D(mActu);
+    mPen->setCylinder(0.4, 12);
+    mPen->setColor(Qt::red);
+    mPen->setPosition(-8.5, 0, -1.0);
 
-    mLink[4] = new Mesh3D(mLink[3]);
-    mLink[4]->loadModel(":/models/0040.wrl");
-    mLink[4]->setCenter(0, 0, -11.5);
-    mLink[4]->setOrient(180, 0, 180);
-    mLink[4]->setPosition(0, 0, 11.5);
-    mLink[4]->showAxes(true);
+    Primitive3D *pr = new Primitive3D(mPen);
+    pr->setCone(0.2, 0.4, 1);
+    pr->setColor(Qt::red);
+    pr->setPosition(0, 0, -1.0);
 
-    mLink[5] = new Mesh3D(mLink[4]);
-    mLink[5]->loadModel(":/models/0060.wrl");
-    mLink[5]->mesh()->translate(QVector3D(-1.25, -4.7, -4.55));
-    mLink[5]->mesh()->rotate(0, QVector3D(-1, 0, 0));
-    mLink[5]->updateModel();
-    mLink[5]->setOrient(0, 90, 0);
+    pr = new Primitive3D(pr);
+    pr->setCylinder(0.1, 0.5);
+    pr->setColor(Qt::darkRed);
+    pr->setPosition(0, 0, -0.5);
 
-    Primitive3D *sph = new Primitive3D(mLink[5]);
-    sph->setSphere(2.5);
-    sph->setColor(Qt::green);
-    sph->setPosition(15, 0, 0);
-
-    mTest = new Primitive3D(root());
-    mTest->setSphere(2.5);
-    mTest->setColor(Qt::red);
+    setPenEnabled(false);
 }
 
-void Scene::setAngles(float *q)
+void Scene::integrate(float dt)
 {
-    mLink[0]->setZRot(-q[0] * 180/M_PI);
-    mLink[1]->setYRot(q[1] * 180/M_PI);
-    mLink[2]->setZRot(q[2] * 180/M_PI);
-    mLink[3]->setXRot(-q[3] * 180/M_PI);
-    mLink[4]->setXRot(q[4] * 180/M_PI);
-    mLink[5]->setZRot(q[5] * 180/M_PI);
+    float b = 0.05; // m
+    float r = 0.025; // m
+
+    float oldx = m_x;
+    float oldy = m_y;
+
+    m_wL = (-m_vt + m_wt * b) / r;
+    m_wR = (m_vt + m_wt * b) / r;
+
+    m_phiL += m_wL * dt;
+    m_phiR += m_wR * dt;
+
+    m_v = (m_wR - m_wL) * r;
+    m_w = (m_wR + m_wL) * r / b;
+
+    m_phi += m_w * dt;
+    m_x += m_v * cosf(m_phi) * dt;
+    m_y += m_v * sinf(m_phi) * dt;
+
+    mWheelL->setZRot(-m_phiL * 180 / M_PI);
+    mWheelR->setZRot(-m_phiR * 180 / M_PI);
+
+    setRobotPose(m_x, m_y, m_phi);
+
+    if (mPenEnabled)
+    {
+        QPainter *p = mPlot->paintBegin();
+        p->setRenderHint(QPainter::Antialiasing);
+        p->setPen(QPen(Qt::red, 2.0f, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p->drawLine(1024+oldx*2048, 1024-oldy*2048, 1024+m_x*2048, 1024-m_y*2048);
+        mPlot->paintEnd();
+    }
+
+    Object3D *tob = mBase;
+    QVector3D addPos = QVector3D(0, 0, 0);
+
+    if (tob)
+    {
+        QVector3D fp = tob->pos() + addPos;
+        float fi = tob->rot().z()*M_PI/180.0f;// tob->model()->yaw();
+        float dd = 0.5; // distance to robot, m
+        QVector3D fd = QVector3D(dd*100*cosf(fi), dd*100*sinf(fi), -25) ;
+        QVector3D pp = fp - fd;
+        static QVector3D ppold = QVector3D(0, 0, 0);
+        if (ppold.isNull())
+            ppold = pp;
+        ppold = (63*ppold + pp) / 64;
+        mFollowingCam->setPosition(ppold);
+//        while (collisionCheck(mFollowingCam, 10))
+//        {
+//            ppold += (fp - ppold) * 0.5;
+//            mFollowingCam->setPosition(ppold);
+//        }
+        mFollowingCam->setTarget(fp);
+        mFollowingCam->setTopDir(QVector3D(0, 0, 1));
+    }
 }
 
-void Scene::setTestPos(QVector3D p)
+void Scene::setControl(float v, float w)
 {
-    mTest->setPosition(p);
+    m_vt = v*0.05f;
+    m_wt = w*0.25f;
 }
+
+void Scene::setRobotPose(float x, float y, float phi)
+{
+    mBase->setPosition(x*100, y*100, 2.5f);
+    mBase->setZRot(phi * 180 / M_PI);
+}
+
+void Scene::setPenEnabled(bool enable)
+{
+    mPenEnabled = enable;
+    mActu->setYRot(enable? 0: 5);
+}
+
+

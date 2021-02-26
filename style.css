@@ -48,6 +48,10 @@ QPushButton {
  height: 2em;
  min-width: 10em;
 }
+#penUp, #penDown
+{
+ min-width: 4.5em;
+}
 QPushButton:hover {
  background-color: rgba($color2, 0.9);
 }

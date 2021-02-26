@@ -4,5 +4,8 @@
         <file>back.jpg</file>
         <file>arrow.png</file>
         <file>ibeam.png</file>
+        <file>model/actuator.wrl</file>
+        <file>model/robot.wrl</file>
+        <file>model/wheel.wrl</file>
     </qresource>
 </RCC>
