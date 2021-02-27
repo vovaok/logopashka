@@ -6,11 +6,12 @@ Scene::Scene() :
     m_wL(0), m_wR(0),
     m_phiL(0), m_phiR(0),
     m_x(0), m_y(0), m_phi(0),
-    mPenEnabled(false)
+    mPenEnabled(false),
+    mBusy(false)
 {
     setMinimumSize(256, 256);
-    setBackColor(QColor(240, 240, 240));
-//    setViewType(QPanel3D::fly);
+    setBackColor(Qt::white);//QColor(240, 240, 240));
+    setViewType(QPanel3D::fly);
     setAutoUpdate(false);
 //    root()->showAxes(true);
 
@@ -22,6 +23,13 @@ Scene::Scene() :
     mMainCam->setZoom(1);
 
     setCamera(mMainCam);
+
+    mTopCam = new Camera3D(this);
+    mTopCam->setPosition(QVector3D(0, 0, 100));
+    mTopCam->setTarget(QVector3D(0, 0, 0));
+    mTopCam->setTopDir(QVector3D(1, 0, 0));
+    mTopCam->setDistanceLimit(500);
+    mTopCam->setZoom(1);
 
     mFollowingCam = new Camera3D(this);
     mFollowingCam->setPosition(QVector3D(-50, 50, 30));
@@ -48,39 +56,33 @@ Scene::Scene() :
     l->setQuadraticAtt(2e-8);
     l->setPosition(QVector3D(-3000, 5000, 2000));
 
-    // floor texture:
-    QImage img(1000, 1000, QImage::Format_ARGB32_Premultiplied);
-    int imgcx = img.width() / 2;
-    int imgcy = img.height() / 2;
-    QPainter p(&img);
-    p.setPen(Qt::NoPen);
-    int cellSize = 50;
-    int cellStartX = imgcx - (imgcx / cellSize + 1) * cellSize;
-    int cellStartY = imgcy - (imgcy / cellSize + 1) * cellSize;
-    for (int i=cellStartX; i<img.width(); i+=cellSize)
-    {
-        for (int j=cellStartY; j<img.height(); j+=cellSize)
-        {
-            bool c = ((i + j) / cellSize) & 1;
-            QColor col = c? QColor(255, 255, 255, 255): QColor(224, 224, 224, 255);
-            p.fillRect(i, j, cellSize, cellSize, col);
-        }
-    }
-    p.end();
+//    // floor texture:
+//    QImage img(1000, 1000, QImage::Format_ARGB32_Premultiplied);
+//    QPainter p(&img);
+//    drawCheckerboard(&p, img.rect());
+//    p.end();
 
-    mPlot = new DynamicTexture(this, QSize(2048, 2048));
+    mPlot = new DynamicTexture(this, QSize(sheet_resolution_px, sheet_resolution_px));
+    drawCheckerboard(mPlot->paintBegin(), QRect(0, 0, sheet_resolution_px, sheet_resolution_px));
+    mPlot->paintEnd();
 
     mFloor = new Primitive3D(root());
     mFloor->setPlane(QVector3D(100, 0, 0), QVector3D(0, 100, 0));
-    mFloor->setDetalization(200, 200);
-    mFloor->setColor(QColor(255, 255, 255));
-    mFloor->setTexture(new StaticTexture(this, img));
+    mFloor->setDetalization(100, 100);
+    mFloor->setColor(Qt::white);
+    mFloor->setTexture(mPlot);
+//    mFloor->setTexture(new StaticTexture(this, img));
 
-    Primitive3D *sheet = new Primitive3D(mFloor);
-    sheet->setPlane(QVector3D(100, 0, 0), QVector3D(0, 100, 0));
-    sheet->setDetalization(100, 100);
-    sheet->setTexture(mPlot);
-    sheet->setZPos(0.1f);
+//    Primitive3D *jopa = new Primitive3D(root());
+//    jopa->setCylinder(0.5, 10);
+//    jopa->setXRot(90);
+
+//    Primitive3D *sheet = new Primitive3D(mFloor);
+//    sheet->setPlane(QVector3D(100, 0, 0), QVector3D(0, 100, 0));
+//    sheet->setDetalization(100, 100);
+//    sheet->setColor(Qt::white);
+//    sheet->setTexture(mPlot);
+//    sheet->setZPos(0.1f);
 
     mBase = new Mesh3D(root());
     mBase->loadModel(":/model/robot.wrl");
@@ -121,6 +123,25 @@ Scene::Scene() :
     setPenEnabled(false);
 }
 
+void Scene::drawCheckerboard(QPainter *p, const QRect &rect)
+{
+    int imgcx = rect.width() / 2;
+    int imgcy = rect.height() / 2;
+    p->setPen(Qt::NoPen);
+    float cellSize = 0.05f * rect.width();
+    int cellStartX = imgcx - (imgcx / cellSize + 1) * cellSize;
+    int cellStartY = imgcy - (imgcy / cellSize + 1) * cellSize;
+    for (float i=cellStartX; i<rect.width(); i+=cellSize)
+    {
+        for (float j=cellStartY; j<rect.height(); j+=cellSize)
+        {
+            bool c = lrintf((i + j) / cellSize) & 1;
+            QColor col = c? QColor(255, 255, 255, 255): QColor(240, 240, 240, 255);
+            p->fillRect(i, j, cellSize, cellSize, col);
+        }
+    }
+}
+
 void Scene::integrate(float dt)
 {
     float b = 0.05; // m
@@ -129,14 +150,33 @@ void Scene::integrate(float dt)
     float oldx = m_x;
     float oldy = m_y;
 
-    m_wL = (-m_vt + m_wt * b) / r;
-    m_wR = (m_vt + m_wt * b) / r;
+    if (mBusy)
+    {
+        if (m_cmdTime >= dt)
+            m_cmdTime -= dt;
+        else if (m_cmdTime > 0)
+        {
+            m_vt = m_vt * m_cmdTime / dt;
+            m_wt = m_wt * m_cmdTime / dt;
+            m_cmdTime = 0;
+        }
+        else
+        {
+            m_cmdTime = 0;
+            m_vt = m_wt = 0;
+            mBusy = false;
+            emit commandCompleted();
+        }
+    }
+
+    m_wL = (m_wt * b - m_vt) / r;
+    m_wR = (m_wt * b + m_vt) / r;
 
     m_phiL += m_wL * dt;
     m_phiR += m_wR * dt;
 
-    m_v = (m_wR - m_wL) * r;
-    m_w = (m_wR + m_wL) * r / b;
+    m_v = (m_wR - m_wL) * r / 2;
+    m_w = (m_wR + m_wL) * r / (2*b);
 
     m_phi += m_w * dt;
     m_x += m_v * cosf(m_phi) * dt;
@@ -149,10 +189,12 @@ void Scene::integrate(float dt)
 
     if (mPenEnabled)
     {
+        int c = sheet_resolution_px / 2;
+        int z = sheet_resolution_px;
         QPainter *p = mPlot->paintBegin();
         p->setRenderHint(QPainter::Antialiasing);
-        p->setPen(QPen(Qt::red, 2.0f, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        p->drawLine(1024+oldx*2048, 1024-oldy*2048, 1024+m_x*2048, 1024-m_y*2048);
+        p->setPen(QPen(Qt::red, 3.0f, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p->drawLine(c+1+oldx*z, c-oldy*z, c+1+m_x*z, c-m_y*z);
         mPlot->paintEnd();
     }
 
@@ -197,6 +239,77 @@ void Scene::setPenEnabled(bool enable)
 {
     mPenEnabled = enable;
     mActu->setYRot(enable? 0: 5);
+    m_cmdTime = 0.5f;
+    mBusy = true;
+}
+
+void Scene::forward(float value)
+{
+    m_vt = vmax;
+    m_wt = 0;
+    m_cmdTime = value * 0.01f / vmax;
+    mBusy = true;
+}
+
+void Scene::backward(float value)
+{
+    m_vt = -vmax;
+    m_wt = 0;
+    m_cmdTime = value * 0.01f / vmax;
+    mBusy = true;
+}
+
+void Scene::left(float value)
+{
+    m_vt = 0;
+    m_wt = wmax;
+    m_cmdTime = value * M_PI / 180 / wmax;
+    mBusy = true;
+}
+
+void Scene::right(float value)
+{
+    m_vt = 0;
+    m_wt = -wmax;
+    m_cmdTime = value * M_PI / 180 / wmax;
+    mBusy = true;
+}
+
+void Scene::stop()
+{
+    m_vt = 0;
+    m_wt = 0;
+    m_cmdTime = 0;
+    mBusy = true;
+}
+
+void Scene::reset()
+{
+    m_v = m_w = 0;
+    m_vt = m_wt = 0;
+    m_wL = m_wR = 0;
+    m_phiL = m_phiR = 0;
+    m_x = m_y = m_phi = 0;
+    mPenEnabled = false;
+    mBusy = false;
+    m_cmdTime = 0;
+
+    setRobotPose(0, 0, 0);
+    mWheelL->setZRot(0);
+    mWheelR->setZRot(0);
+
+    drawCheckerboard(mPlot->paintBegin(), QRect(0, 0, sheet_resolution_px, sheet_resolution_px));
+    mPlot->paintEnd();
+}
+
+void Scene::setView(Scene::ViewType viewtype)
+{
+    switch (viewtype)
+    {
+    case ViewMain: setCamera(mMainCam); break;
+    case ViewTop: setCamera(mTopCam); break;
+    case ViewFollow: setCamera(mFollowingCam); break;
+    }
 }
 
 

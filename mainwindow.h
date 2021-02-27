@@ -46,6 +46,9 @@ private:
     Robot *device;
 
     Scene *scene;
+    QGroupBox *sceneBox;
+    QPushButton *btnScene;
+    QPushButton *btnPU, *btnPD;
 
 //    #ifdef Q_OS_WIN
 //    SpaceMouse *joy3D;
@@ -57,6 +60,7 @@ private:
 
     QStackedWidget *stack;
     QVBoxLayout *mProgramLayout;
+    QGroupBox *mProgramGroup;
     QLabel *mSpacer;
 
     Led *connLed;

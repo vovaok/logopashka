@@ -21,7 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     css.replace("$color1", "139, 237, 139");
     css.replace("$color2", "139, 227, 237");
     styleFile.close();
-    setStyleSheet(css);   
+    setStyleSheet(css);
 
     context = nullptr;
 
@@ -66,7 +66,10 @@ MainWindow::MainWindow(QWidget *parent)
     joy->resize(600, 600);
 
 
+    mProgramGroup = new QGroupBox();
+    mProgramGroup->setStyleSheet("QGroupBox {border: none; margin: 0; padding: 0;}");
     mProgramLayout = new QVBoxLayout;
+    mProgramGroup->setLayout(mProgramLayout);
 
 
     editor = new CodeEditor;
@@ -88,29 +91,62 @@ MainWindow::MainWindow(QWidget *parent)
     connect(btnClose, &QPushButton::clicked, this, &MainWindow::close);
 
 
-    scene = new Scene;
-    scene->setObjectName("scene");
+    scene = new Scene();
+    QPushButton *btnCamMain = new QPushButton("fly");
+    btnCamMain->setStyleSheet("min-width: 100px;");
+    btnCamMain->setCheckable(true);
+    btnCamMain->setAutoExclusive(true);
+    btnCamMain->setChecked(true);
+    connect(btnCamMain, &QPushButton::clicked, [=](){scene->setView(Scene::ViewMain);});
+    QPushButton *btnCamTop = new QPushButton("top");
+    btnCamTop->setStyleSheet("min-width: 100px;");
+    btnCamTop->setCheckable(true);
+    btnCamTop->setAutoExclusive(true);
+    connect(btnCamTop, &QPushButton::clicked, [=](){scene->setView(Scene::ViewTop);});
+    QPushButton *btnCamFollow = new QPushButton("follow");
+    btnCamFollow->setStyleSheet("min-width: 100px;");
+    btnCamFollow->setCheckable(true);
+    btnCamFollow->setAutoExclusive(true);
+    connect(btnCamFollow, &QPushButton::clicked, [=](){scene->setView(Scene::ViewFollow);});
+
+    sceneBox = new QGroupBox;
+    sceneBox->setStyleSheet("QGroupBox {background-color: white;}");
+    QVBoxLayout *sceneboxlay = new QVBoxLayout;
+    QHBoxLayout *scenebtnlay = new QHBoxLayout;
+    sceneboxlay->setContentsMargins(0, 0, 0, 0);
+    sceneBox->setLayout(sceneboxlay);
+    sceneboxlay->addLayout(scenebtnlay);
+    sceneboxlay->addWidget(scene);
+
+    scenebtnlay->addWidget(btnCamMain);
+    scenebtnlay->addWidget(btnCamTop);
+    scenebtnlay->addWidget(btnCamFollow);
 
     stack = new QStackedWidget;
     stack->addWidget(editor);
-    stack->addWidget(scene);
+    stack->addWidget(sceneBox);
 
-    QPushButton *btnScene = new QPushButton("Model");
+//    QSplitter *splitter = new QSplitter(this);
+//    splitter->setOrientation(Qt::Vertical);
+//    splitter->addWidget(stack);
+//    splitter->addWidget(sceneBox);
+
+    btnScene = new QPushButton("Model");
     btnScene->setCheckable(true);
-    connect(btnScene, &QPushButton::clicked, [=](bool checked)
+    connect(btnScene, &QPushButton::toggled, [=](bool checked)
     {
         if (checked)
-            stack->setCurrentWidget(scene);
+            stack->setCurrentWidget(sceneBox);
         else
             stack->setCurrentWidget(editor);
     });
 
-    QPushButton *btnPD = new QPushButton("ПО");
+    btnPD = new QPushButton("ПО");
     btnPD->setObjectName("penDown");
     btnPD->setCheckable(true);
     btnPD->setAutoExclusive(true);
     connect(btnPD, &QPushButton::clicked, scene, &Scene::penDown);
-    QPushButton *btnPU = new QPushButton("ПП");
+    btnPU = new QPushButton("ПП");
     btnPU->setObjectName("penUp");
     btnPU->setFixedWidth(100);
     btnPU->setCheckable(true);
@@ -140,9 +176,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     QGridLayout *lay = new QGridLayout;
     lay->setSpacing(12);
-    lay->addLayout(mProgramLayout, 0, 0, 2, 1);
+//    lay->addLayout(mProgramLayout, 0, 0, 2, 1);
+    lay->addWidget(mProgramGroup, 0, 0, 2, 1);
     lay->addLayout(btnLay, 0, 2);
     lay->addWidget(stack, 0, 1, 2, 1);
+//    lay->addWidget(splitter, 0, 1, 2, 1);
     lay->addLayout(controlLay, 1, 2);
 
     ui->centralwidget->setLayout(lay);
@@ -156,7 +194,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(device, &Robot::commandCompleted, [=]()
     {
         mProcessing = false;
-//        qDebug() << "poimal";
+    });
+
+    connect(scene, &Scene::commandCompleted, [=]()
+    {
+        mProcessing = false;
     });
 
     QTimer *timer = new QTimer(this);
@@ -284,6 +326,7 @@ void MainWindow::run()
     mDebug = false;
     if (!device->isEnabled())
         enableBtn->setChecked(true);
+    btnScene->setChecked(true);
     mStack.clear();
     context = new ScriptContext(text, context);
     qDebug() << "*** RUN ***";
@@ -592,11 +635,13 @@ void MainWindow::listPrograms()
         QString programName = file.baseName().toUpper();
         QPushButton *btn = new QPushButton(file.baseName());
         btn->setCheckable(true);
+
         btn->setAutoExclusive(true);
         connect(btn, &QPushButton::clicked, [=]()
         {
             save();
             open(programName);
+            btnScene->setChecked(false);
         });
         mPrograms << programName.toUpper();
         mProgramBtns[programName] = btn;
@@ -677,36 +722,49 @@ void MainWindow::createProcedures()
     proc["ВПЕРЕД"] = [=](QString value)
     {
         device->forward(value.toFloat());
+        scene->forward(value.toFloat());
         mProcessing = true;
 //        qDebug() << "forward" << value.toFloat();
     };
     proc["НАЗАД"] = [=](QString value)
     {
         device->backward(value.toFloat());
+        scene->backward(value.toFloat());
         mProcessing = true;
     };
     proc["ВЛЕВО"] = [=](QString value)
     {
         device->left(value.toFloat());
+        scene->left(value.toFloat());
         mProcessing = true;
     };
     proc["ВПРАВО"] = [=](QString value)
     {
         device->right(value.toFloat());
+        scene->right(value.toFloat());
         mProcessing = true;
     };
     proc["ПЕРОПОДНЯТЬ"] = [=]()
     {
         device->penUp();
+        scene->penUp();
+        btnPU->setChecked(true);
         mProcessing = true;
     };
     proc["ПП"] = proc["ПЕРОПОДНЯТЬ"];
     proc["ПЕРООПУСТИТЬ"] = [=]()
     {
         device->penDown();
+        scene->penDown();
+        btnPD->setChecked(true);
         mProcessing = true;
     };
     proc["ПО"] = proc["ПЕРООПУСТИТЬ"];
+
+    proc["ОЧИСТИТЬЭКРАН"] = [=]()
+    {
+        scene->reset();
+    };
 
     proc["ПОВТОР"] = [=](QString count, QString list)
     {
