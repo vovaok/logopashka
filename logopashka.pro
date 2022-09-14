@@ -2,7 +2,7 @@ QT       += core gui sensors
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = Robot
+TARGET = LogoPashka
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
