@@ -150,7 +150,7 @@ private:
     {
         if (mVars.contains(name))
             return mVars[name];
-        return "";
+        return QString();
     }
 
     class ScriptContext
@@ -159,7 +159,6 @@ private:
         int mPos, mOldPos;
 //        int mTextOffset;
         QString mText;
-//        QMap<QString, QString> mLocalVars;
         ScriptContext *mParent;
 
     public:
@@ -168,6 +167,7 @@ private:
         int mTextOffset;
         int mRepCount, mRepMax;
         QString name;
+        QMap<QString, QString> mLocalVars;
 
         ScriptContext(QString text, ScriptContext *parent=nullptr) :
             mPos(0), mOldPos(0),
@@ -180,6 +180,11 @@ private:
             rx.setMinimal(true);
             mText = text.replace(rx, "\n").replace('\n', ' ');
             mTextOffset = parent? parent->lastPos()+1: 0;
+            if (parent)
+            {
+                for (QString k: parent->mLocalVars.keys())
+                    mLocalVars[k] = parent->mLocalVars[k];
+            }
 //            restart();
         }
 
@@ -234,6 +239,23 @@ private:
                 word = mText.mid(idx, mPos - idx);
             }
             return word;
+        }
+
+        QString var(QString name) const
+        {
+            if (mLocalVars.contains(name))
+                return mLocalVars[name];
+            else
+                return QString();
+        }
+
+        void dumpVars() const
+        {
+            qDebug() << "Procedure" << name << "variables:";
+            for (QString k: mLocalVars.keys())
+            {
+                qDebug() << k << "=" << mLocalVars[k];
+            }
         }
 
         bool atEnd() const {return mPos >= mText.length();}

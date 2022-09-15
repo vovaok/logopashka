@@ -487,7 +487,11 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     }
     else if (token.startsWith(":"))
     {
-        return var(token.mid(1));
+        QString varname = token.mid(1);
+        QString value = context->var(varname);
+        if (!value.isNull())
+            return value;
+        return var(varname);
     }
     else if (token.indexOf(QRegExp("^[\\d.,]+$")) >= 0)
     {
@@ -557,6 +561,7 @@ void MainWindow::step()
 
         QString token = context->nextToken();
         editor->highlightText(context->lastPos(), context->curPos(), selColor, lineColor);
+        qDebug() << "context:" << ctxName;
         result = eval(token);
 
         QTextCursor cur = editor->textCursor();
@@ -768,7 +773,9 @@ void MainWindow::createProcedures()
 
     proc["ПОВТОР"] = [=](QString count, QString list)
     {
+        context->dumpVars();
         context = new ScriptContext(list, context);
+        context->dumpVars();
         context->mRepMax = count.toInt();
         context->mRepCount = 1;
     };
@@ -844,7 +851,7 @@ void MainWindow::createProcedures()
         QString procName = context->nextToken();
         QStringList paramNames;
         while (context->testNextToken().startsWith(":"))
-            paramNames << context->nextToken();
+            paramNames << context->nextToken().mid(1);
         QString text = "";
         int offset = 0;
         while (!context->atEnd())
@@ -862,13 +869,21 @@ void MainWindow::createProcedures()
         proc[procName].setGeneric(pcount, [=](QStringList params)
         {
             QString textcopy = text;
-            for (int i=0; i<pcount; i++)
-                textcopy.replace(paramNames[i], params[i]);
+//            for (int i=0; i<pcount; i++)
+//                textcopy.replace(paramNames[i], params[i]);
             qDebug() << "STACK" << mStack;
             ScriptContext *oldContext = context;
             ScriptContext *newContext = new ScriptContext(textcopy, context);
             newContext->mTextOffset = offset;
             newContext->name = procName;
+            for (int i=0; i<pcount; i++)
+            {
+                newContext->mLocalVars[paramNames[i]] = params[i];
+            }
+            for (QString k: newContext->mLocalVars.keys())
+            {
+                qDebug() << procName << "::" << k << "=" << newContext->mLocalVars[k];
+            }
             context = newContext;
             if (mStack.size() > 1) // => wait result => eval here
             {
