@@ -322,6 +322,8 @@ void MainWindow::run()
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(false);
     QString text = editor->toPlainText();
+    if (!mProgramName.isEmpty() && mProgramName != "MAIN")
+        text = mProgramName;
     mScript = text.split('\n');
     mDebug = false;
     if (!device->isEnabled())
