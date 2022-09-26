@@ -11,12 +11,12 @@ Scene::Scene() :
 {
     setMinimumSize(256, 256);
     setBackColor(Qt::white);//QColor(240, 240, 240));
-    setViewType(QPanel3D::fly);
+    setViewType(QPanel3D::object);
     setAutoUpdate(false);
 //    root()->showAxes(true);
 
     mMainCam = new Camera3D(this);
-    mMainCam->setPosition(QVector3D(-60, 20, 20));
+    mMainCam->setPosition(QVector3D(60, 20, 20));
     mMainCam->setTarget(QVector3D(0, 0, 5));
     mMainCam->setTopDir(QVector3D(0, 0, 1));
     mMainCam->setDistanceLimit(500);
@@ -49,7 +49,7 @@ Scene::Scene() :
     Light3D *l = new Light3D(fonarik);
     l->setDiffuseColor(QColor(255, 255, 224));
     l->setQuadraticAtt(1e-7);
-    l->setPosition(QVector3D(-2000, 1000, 1000));
+    l->setPosition(QVector3D(2000, 1000, 1000));
     l = new Light3D(fonarik);
     l->setDiffuseColor(QColor(255, 255, 230));
     l->setSpecularColor(QColor(240, 240, 255));
@@ -121,6 +121,26 @@ Scene::Scene() :
     pr->setPosition(0, 0, -0.5);
 
     setPenEnabled(false);
+
+    Primitive3D *face = new Primitive3D(mBase);
+    face->setPlane(QVector3D(3.5f, 0, 0), QVector3D(0, 7, 0));
+    face->setOrient(0, -80, 0);
+    face->setPosition(-1.8, 0, 2);
+    face->setColor(Qt::white, Qt::white, Qt::white);
+    mFace = new DynamicTexture(this, QSize(10, 18));
+    face->setTexture(mFace);
+
+    blinking = 0;
+    sleepy = 0;//7;
+    eyelid = 0;
+    eyeSize = 4;
+    size = 2;
+    eyeX = 0;
+    eyeY = 0;
+    mood = 2;
+    joy = 0;
+
+    updateFace();
 }
 
 void Scene::drawCheckerboard(QPainter *p, const QRect &rect)
@@ -136,10 +156,122 @@ void Scene::drawCheckerboard(QPainter *p, const QRect &rect)
         for (float j=cellStartY; j<rect.height(); j+=cellSize)
         {
             bool c = lrintf((i + j) / cellSize) & 1;
-            QColor col = c? QColor(255, 255, 255, 255): QColor(240, 240, 240, 255);
+            int v = 240 + m_clear;
+            QColor col = c? QColor(255, 255, 255, 255): QColor(v, v, v, 255);
             p->fillRect(i, j, cellSize, cellSize, col);
         }
     }
+}
+
+void Scene::updateFace()
+{
+    uint32_t backColor = m_eyeColor & 0x00FFFFFF;
+    QImage faceImage(10, 18, QImage::Format_ARGB32_Premultiplied);
+    faceImage.fill(backColor);
+
+    blinking++;
+    if (blinking > 200)
+        blinking = 0;
+
+    // draw
+    if (rand() < RAND_MAX / 100)
+    {
+        eyeX = (rand() % lrintf(5-sleepy/2)) - 2;
+        eyeY = (rand() % lrintf(6-sleepy)) - 2;
+    }
+
+    if (rand() < RAND_MAX / 500)
+    {
+        if (rand() & 1)
+            mood++;
+        else
+            mood--;
+        if (mood > 6)
+            mood = 6;
+        else if (mood < -6)
+            mood = -6;
+    }
+
+    if (eyelid < sleepy)
+         eyelid = sleepy;
+
+    int R = eyeSize;
+    int R2 = R*R;
+    float r = size * 0.5f;
+    float r2 = r*r;
+    float ex = (eyeX * (2*R)) / 10.0f;
+    float ey = (-eyeY * (2*R)) / 10.0f;
+
+    for (int i=0; i<8; i++)
+    {
+        float x = i - 3.5f;
+        for (int j=0; j<8; j++)
+        {
+//            float v = 1.0f;
+            float y = j - 3.5f;
+            faceImage.setPixel(8-j, i+1, backColor);
+            faceImage.setPixel(8-j, 16-i, backColor);
+//            screen->pixel(i, j) = 0;
+//            screen->pixel(15-i, j) = 0;
+            if (j < eyelid)
+                continue;
+            if (x*mood + 4*(y+R-eyelid) < 0)
+                continue;
+            if ((y-R+1) > (1-joy))
+                continue;
+            float Ro2 = x*x*1.42f + y*y;
+            if (Ro2 <= R2)
+            {
+                faceImage.setPixel(8-j, i+1, m_eyeColor);
+                faceImage.setPixel(8-j, 16-i, m_eyeColor);
+//                screen->pixel(i, j) = 1;
+//                screen->pixel(15-i, j) = 1;
+            }
+        }
+    }
+
+    int ri = floorf(r);
+    for (int i=0; i<ri; i++)
+    {
+        int rj = lrintf(r2 / ri);
+        for (int j=0; j<rj; j++)
+        {
+            int i0 = i - ri/2;
+            int j0 = j - rj/2;
+            int x = lrintf(i0 + 4 + ex);
+            int y = lrintf(j0 + 4 + ey);
+            int r02 = (i0+0.5f)*(i0+0.5f) + (j0+0.5f)*(j0);
+            if (r02 >= r2/4)
+                continue;
+            if (x < 0 || x >= 8)
+                continue;
+            if (y < 0 || y >= 8)
+                continue;
+            faceImage.setPixel(8-y, x+1, backColor);
+            faceImage.setPixel(8-y, x+9, backColor);
+//            screen->pixel(x, y) = 0;
+//            screen->pixel(x+8, y) = 0;
+        }
+    }
+
+    //unsigned char mask = 0xFF;
+    if (blinking < 8)
+    {
+        eyelid = blinking;
+        //mask = ~((1 << morganie) - 1);
+    }
+    else if (blinking < 16)
+    {
+        eyelid = 15 - blinking;
+        //mask = ~((1 << (15 - morganie)) - 1);
+    }
+
+    QPainter *p = mFace->paintBegin();
+    p->setCompositionMode(QPainter::CompositionMode_Source);
+    p->fillRect(faceImage.rect(), Qt::transparent);
+    p->setCompositionMode(QPainter::CompositionMode_SourceOver);
+    p->drawImage(0, 0, faceImage);
+    mFace->paintEnd();
 }
 
 void Scene::integrate(float dt)
@@ -186,15 +318,27 @@ void Scene::integrate(float dt)
     mWheelR->setZRot(-m_phiR * 180 / M_PI);
 
     setRobotPose(m_x, m_y, m_phi);
+    updateFace();
+
+    if (m_clear)
+    {
+        --m_clear;
+        drawCheckerboard(mPlot->paintBegin(), QRect(0, 0, sheet_resolution_px, sheet_resolution_px));
+        mPlot->paintEnd();
+    }
 
     if (mPenEnabled)
     {
         int c = sheet_resolution_px / 2;
         int z = sheet_resolution_px;
         QPainter *p = mPlot->paintBegin();
-        p->setRenderHint(QPainter::Antialiasing);
-        p->setPen(QPen(Qt::red, 3.0f, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        p->drawLine(c+1+oldx*z, c-oldy*z, c+1+m_x*z, c-m_y*z);
+//        p->setRenderHint(QPainter::Antialiasing);
+        float pen_width = 6.0f * expf(-m_v*m_v*50);
+        p->setPen(QPen(Qt::red, pen_width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        if (m_v)
+            p->drawLine(c+1+oldx*z, c-oldy*z, c+1+m_x*z, c-m_y*z);
+        else
+            p->drawPoint(c+1+m_x*z, c-m_y*z);
         mPlot->paintEnd();
     }
 
@@ -298,8 +442,9 @@ void Scene::reset()
     mWheelL->setZRot(0);
     mWheelR->setZRot(0);
 
-    drawCheckerboard(mPlot->paintBegin(), QRect(0, 0, sheet_resolution_px, sheet_resolution_px));
-    mPlot->paintEnd();
+    m_clear = 15;
+//    drawCheckerboard(mPlot->paintBegin(), QRect(0, 0, sheet_resolution_px, sheet_resolution_px));
+//    mPlot->paintEnd();
 }
 
 void Scene::setView(Scene::ViewType viewtype)

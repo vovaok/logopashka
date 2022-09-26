@@ -11,7 +11,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("Robot");
-    showFullScreen();
+//    showFullScreen();
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
@@ -73,9 +73,16 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     editor = new CodeEditor;
-    editor->setMinimumWidth(400);
+    editor->setMinimumWidth(300);
     editor->viewport()->setCursor(QCursor(QPixmap::fromImage(QImage(":/ibeam.png"))));
     editor->setCursorWidth(3);
+
+    console = new QLineEdit;
+    connect(console, &QLineEdit::returnPressed, [=]()
+    {
+        console->setText(evalExpr(console->text()));
+        console->selectAll();
+    });
 
     QPushButton *btnPlay = new QPushButton("RUN");
     btnPlay->setShortcut(QKeySequence("Ctrl+R"));
@@ -110,7 +117,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(btnCamFollow, &QPushButton::clicked, [=](){scene->setView(Scene::ViewFollow);});
 
     sceneBox = new QGroupBox;
-    sceneBox->setStyleSheet("QGroupBox {background-color: white;}");
+    sceneBox->setStyleSheet("QGroupBox {background-color: white; margin: 0;}");
     QVBoxLayout *sceneboxlay = new QVBoxLayout;
     QHBoxLayout *scenebtnlay = new QHBoxLayout;
     sceneboxlay->setContentsMargins(0, 0, 0, 0);
@@ -122,24 +129,29 @@ MainWindow::MainWindow(QWidget *parent)
     scenebtnlay->addWidget(btnCamTop);
     scenebtnlay->addWidget(btnCamFollow);
 
-    stack = new QStackedWidget;
-    stack->addWidget(editor);
-    stack->addWidget(sceneBox);
+//    stack = new QStackedWidget;
+//    stack->addWidget(editor);
+//    stack->addWidget(sceneBox);
 
-//    QSplitter *splitter = new QSplitter(this);
-//    splitter->setOrientation(Qt::Vertical);
-//    splitter->addWidget(stack);
-//    splitter->addWidget(sceneBox);
+    QSplitter *splitter = new QSplitter(this);
+    splitter->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    splitter->setOrientation(Qt::Vertical);
+    splitter->addWidget(editor);
+    splitter->addWidget(sceneBox);
 
     btnScene = new QPushButton("Model");
     btnScene->setCheckable(true);
     connect(btnScene, &QPushButton::toggled, [=](bool checked)
     {
-        if (checked)
-            stack->setCurrentWidget(sceneBox);
-        else
-            stack->setCurrentWidget(editor);
+        editor->setHidden(checked);
+        sceneBox->setVisible(checked);
+//        if (checked)
+//            stack->setCurrentWidget(sceneBox);
+//        else
+//            stack->setCurrentWidget(editor);
     });
+
+    editor->hide();
 
     btnPD = new QPushButton("ПО");
     btnPD->setObjectName("penDown");
@@ -174,14 +186,32 @@ MainWindow::MainWindow(QWidget *parent)
     controlLay->addWidget(btnScene);
     controlLay->addWidget(enableBtn);
 
-    QGridLayout *lay = new QGridLayout;
-    lay->setSpacing(12);
-//    lay->addLayout(mProgramLayout, 0, 0, 2, 1);
-    lay->addWidget(mProgramGroup, 0, 0, 2, 1);
-    lay->addLayout(btnLay, 0, 2);
-    lay->addWidget(stack, 0, 1, 2, 1);
-//    lay->addWidget(splitter, 0, 1, 2, 1);
-    lay->addLayout(controlLay, 1, 2);
+//    QGridLayout *lay = new QGridLayout;
+//    lay->setSpacing(12);
+////    lay->addLayout(mProgramLayout, 0, 0, 2, 1);
+//    lay->addWidget(mProgramGroup, 0, 0, 3, 1);
+//    lay->addLayout(btnLay, 0, 2);
+//    lay->addWidget(stack, 0, 1, 2, 1);
+//    lay->addWidget(console, 2, 1);
+////    lay->addWidget(splitter, 0, 1, 2, 1);
+//    lay->addLayout(controlLay, 1, 2, 2, 1);
+
+    QHBoxLayout *lay = new QHBoxLayout;
+    lay->setContentsMargins(16, 16, 16, 16);
+    lay->setSpacing(16);
+    lay->addWidget(mProgramGroup);
+
+    QVBoxLayout *mainlay = new QVBoxLayout;
+//    mainlay->addWidget(editor);
+//    mainlay->addWidget(sceneBox);
+    mainlay->addWidget(splitter);
+    mainlay->addWidget(console);
+    lay->addLayout(mainlay, 1);
+
+    QVBoxLayout *rightlay = new QVBoxLayout;
+    rightlay->addLayout(btnLay);
+    rightlay->addLayout(controlLay);
+    lay->addLayout(rightlay);
 
     ui->centralwidget->setLayout(lay);
 
@@ -236,8 +266,8 @@ void MainWindow::keyPressEvent(QKeyEvent *e)
     }
     else if (e->key() == Qt::Key_F10)
     {
+        setDebugMode(true);
         step();
-        mDebug = true;
     }
 
 }
@@ -325,7 +355,7 @@ void MainWindow::run()
     if (!mProgramName.isEmpty() && mProgramName != "MAIN")
         text = mProgramName;
     mScript = text.split('\n');
-    mDebug = false;
+    setDebugMode(false);
     if (!device->isEnabled())
         enableBtn->setChecked(true);
     btnScene->setChecked(true);
@@ -648,6 +678,8 @@ void MainWindow::listPrograms()
         {
             save();
             open(programName);
+            editor->show();
+            sceneBox->hide();
             btnScene->setChecked(false);
         });
         mPrograms << programName.toUpper();
@@ -720,6 +752,21 @@ QString MainWindow::load(QString name)
     QString text = QString::fromUtf8(file.readAll());
     file.close();
     return text;
+}
+
+void MainWindow::setDebugMode(bool enabled)
+{
+    mDebug = enabled;
+    if (mDebug)
+    {
+        editor->show();
+        sceneBox->show();
+    }
+    else
+    {
+        editor->hide();
+        sceneBox->show();
+    }
 }
 
 

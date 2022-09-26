@@ -13,7 +13,7 @@ QLabel
 {
     color: black;
 }
-QPlainTextEdit, QTextEdit
+QPlainTextEdit, QTextEdit, QLineEdit
 {
 /*    font-size: 32pt;*/
     font-family: Consolas;
@@ -21,6 +21,7 @@ QPlainTextEdit, QTextEdit
     border: 3px solid white;
     border-radius: .5em;
     padding: .5em;
+    selection-background-color: rgb($color2);
 }
 /*QToolTip {
  border-radius: 2px;
@@ -74,14 +75,15 @@ QPushButton:disabled {
 {
  background-color: rgba(255, 0, 0, 0.8);
 }
-QLineEdit {
+/*QLineEdit {
  background-color: white;
  border: 3px solid white;
  color: rgb(0, 31, 57);
  border-radius: .25em;
  height: 1em;
  max-width: 4em;
-}
+}*/
+
 /*QSpinBox {
  background-color: white;
  border: 3px solid white;
@@ -209,4 +211,17 @@ QStatusBar
                                 stop:0 transparent,
                                 stop:0.5 rgb($color2),
                                 stop:1 rgb($color2));
+}
+
+QSplitter::handle:vertical
+{
+    margin: .5em 2em;
+    padding: .1em;
+    border-top: 3px solid white;
+    border-bottom: 3px solid white;
+    background-color:rgba($color2, 0.8);
+    /*background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 transparent,
+                                      stop: 0.5 rgb($color2),
+                                      stop: 1 transparent);*/
 }

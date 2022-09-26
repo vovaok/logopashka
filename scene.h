@@ -23,6 +23,20 @@ private:
     Mesh3D *mActu;
     Primitive3D *mPen;
     DynamicTexture *mPlot;
+    DynamicTexture *mFace;
+
+    const uint32_t m_eyeColor = 0xFF40A0FF;
+//    uint8_t eyes[16]; // two 8x8 LED matrices
+    int blinking;
+    float sleepy;
+    int eyelid;
+    int eyeSize;
+    int size;
+    int eyeX;
+    int eyeY;
+    int mood;
+    int joy;
+
 
     const int sheet_resolution_px = 2000;
     const float vmax = 0.1; // m/s
@@ -37,8 +51,11 @@ private:
     bool mPenEnabled;
     bool mBusy;
     float m_cmdTime;
+    int m_clear = 15;
 
     void drawCheckerboard(QPainter *p, const QRect &rect);
+
+    void updateFace();
 
 public:
     Scene();

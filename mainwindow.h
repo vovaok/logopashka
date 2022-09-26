@@ -55,6 +55,7 @@ private:
 //    #endif
 
     CodeEditor *editor;
+    QLineEdit *console;
 
     //QRotationSensor *imu;
 
@@ -314,5 +315,7 @@ private slots:
     void save();
     void open(QString name);
     QString load(QString name);
+
+    void setDebugMode(bool enabled);
 };
 #endif // MAINWINDOW_H
