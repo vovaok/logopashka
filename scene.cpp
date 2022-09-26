@@ -9,7 +9,7 @@ Scene::Scene() :
     mPenEnabled(false),
     mBusy(false)
 {
-    setMinimumSize(256, 256);
+    setMinimumSize(600, 600);
     setBackColor(Qt::white);//QColor(240, 240, 240));
     setViewType(QPanel3D::object);
     setAutoUpdate(false);

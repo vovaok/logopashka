@@ -10,7 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
       scene(nullptr)
 {
     ui->setupUi(this);
-    setWindowTitle("Robot");
+    setWindowTitle("LogoPashka");
 //    showFullScreen();
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
@@ -81,6 +81,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(console, &QLineEdit::returnPressed, [=]()
     {
         console->setText(evalExpr(console->text()));
+        mStack.clear();
         console->selectAll();
     });
 
@@ -259,7 +260,7 @@ void MainWindow::keyPressEvent(QKeyEvent *e)
     }
     else if (e->key() == Qt::Key_F5)
     {
-        if (!isRunning())
+        if (!isRunning() || mDebug)
             run();
         else
             stop();
@@ -393,7 +394,11 @@ QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
     QString infixOp = context->testInfixOp();
     if (!dontTestInfix && !infixOp.isEmpty() && !context->isInfixOp(token))
     {
-        QString lastOp = mStack.last();
+        if (mStack.isEmpty())
+            mStack.append(""); // empty operator ??
+        QString lastOp;
+//        if (mStack.isEmpty())
+            lastOp = mStack.last();
 //        QString lastOp = context->mLastOp;
 //        qDebug() << "infix" << infixOp << "lastOp" << lastOp;
         if (opPriority(infixOp) > opPriority(lastOp))
