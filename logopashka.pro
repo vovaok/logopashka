@@ -5,14 +5,13 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = LogoPashka
 
 DEFINES += QT_DEPRECATED_WARNINGS
+#DEFINES += ONB
 
 CONFIG += c++14
 
 COMPONENTS = d:/projects/qt/components5
-include($$COMPONENTS/onb/onb.pri)
-#include($$COMPONENTS/usbhid/usbhid.pri)
+#include($$COMPONENTS/onb/onb.pri)
 include($$COMPONENTS/panel3d/panel3d.pri)
-#include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/megawidgets/megawidgets.pri)
 
 win32: {
@@ -26,14 +25,13 @@ win32: {
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    robot.cpp \
+#    robot.cpp \
     codeeditor.cpp \
     scene.cpp
 
 HEADERS += \
     mainwindow.h \
-#    matrix.h \
-    robot.h \
+#    robot.h \
     codeeditor.h \
     scene.h
 

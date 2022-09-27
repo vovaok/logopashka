@@ -4,10 +4,10 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow),
-      mProcessing(false),
-      mDebug(false),
+      scene(nullptr),
       mSpacer(nullptr),
-      scene(nullptr)
+      mProcessing(false),
+      mDebug(false)
 {
     ui->setupUi(this);
     setWindowTitle("LogoPashka");
@@ -15,9 +15,19 @@ MainWindow::MainWindow(QWidget *parent)
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
+    int font_size = width() / 83;
+    QScreen *screen = QApplication::screens().at(0);
+    if (screen)
+    {
+        font_size = screen->size().width() / 83;
+//        qDebug() << screen->logicalDotsPerInch() << screen->physicalDotsPerInch();
+    }
+    qDebug() << font_size;
+
     QFile styleFile(":/style.css");
     styleFile.open(QIODevice::ReadOnly);
     QString css = styleFile.readAll();
+    css.replace("$font_size", QString::number(font_size)+"pt");
     css.replace("$color1", "139, 237, 139");
     css.replace("$color2", "139, 227, 237");
     styleFile.close();
@@ -33,6 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
 //    imu->connectToBackend();
 //    imu->start();
 
+#if defined(ONB)
     onbvs = new ObjnetVirtualServer(this);
     onbvs->setEnabled(true);
     onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
@@ -42,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     device = new Robot();
     oviMaster->registerDevice(device, 13);
+#endif
 
     connLed = new Led(QColor(139, 237, 139));
     connLed->setFixedSize(50, 50);
@@ -52,12 +64,14 @@ MainWindow::MainWindow(QWidget *parent)
     QPushButton *stopBtn = new QPushButton("STOP");
     connect(stopBtn, &QPushButton::clicked, this, &MainWindow::stop);
 
+#if defined(ONB)
     enableBtn = new QPushButton("Enable");
     enableBtn->setCheckable(true);
     connect(enableBtn, &QPushButton::toggled, [=](bool checked)
     {
         device->setEnabled(checked);
     });
+#endif
 
     joy = new JoystickWidget;
     joy->setColor(QColor(127, 185, 187));
@@ -185,7 +199,9 @@ MainWindow::MainWindow(QWidget *parent)
     controlLay->addWidget(penbox);
     controlLay->addWidget(joy, 1);
     controlLay->addWidget(btnScene);
+#if defined(ONB)
     controlLay->addWidget(enableBtn);
+#endif
 
 //    QGridLayout *lay = new QGridLayout;
 //    lay->setSpacing(12);
@@ -222,10 +238,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     listPrograms();
 
+#if defined(ONB)
     connect(device, &Robot::commandCompleted, [=]()
     {
         mProcessing = false;
     });
+#endif
 
     connect(scene, &Scene::commandCompleted, [=]()
     {
@@ -243,7 +261,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::closeEvent(QCloseEvent *e)
+void MainWindow::closeEvent(QCloseEvent *)
 {
     stop();
     save();
@@ -320,26 +338,32 @@ void MainWindow::onTimer()
 //        dwz = qBound(-0.1, r->z() - x[5], 0.1);
 //    }
 
+#if defined(ONB)
     device->update();
+#endif
 
 //    if (joy->isActive())
     if (!isRunning())
     {
         float v = joy->y();
         float w = -joy->x();// * 10;
+#if defined(ONB)
         device->setControl(v*3, w*3);
+#endif
         if (scene && scene->isVisible())
             scene->setControl(v*3, w*3);
     }
 
     scene->integrate(dt);
 
+#if defined(ONB)
     bool conn = device->isValid() && device->isPresent();
     connLed->setState(conn);
     if (conn)
         connlabel->setText("connected");
     else
         connlabel->setText("disconnected");
+#endif
 
     scene->update();
     if (scene->isVisible())
@@ -357,8 +381,10 @@ void MainWindow::run()
         text = mProgramName;
     mScript = text.split('\n');
     setDebugMode(false);
+#if defined(ONB)
     if (!device->isEnabled())
         enableBtn->setChecked(true);
+#endif
     btnScene->setChecked(true);
     mStack.clear();
     context = new ScriptContext(text, context);
@@ -636,8 +662,10 @@ void MainWindow::stop()
         delete temp;
     }
     editor->clearHighlights();
+#if defined(ONB)
     device->stop();
     enableBtn->setChecked(false);
+#endif
     editor->setReadOnly(false);
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(true);
@@ -780,32 +808,42 @@ void MainWindow::createProcedures()
 {
     proc["ВПЕРЕД"] = [=](QString value)
     {
+#if defined(ONB)
         device->forward(value.toFloat());
+#endif
         scene->forward(value.toFloat());
         mProcessing = true;
 //        qDebug() << "forward" << value.toFloat();
     };
     proc["НАЗАД"] = [=](QString value)
     {
+#if defined(ONB)
         device->backward(value.toFloat());
+#endif
         scene->backward(value.toFloat());
         mProcessing = true;
     };
     proc["ВЛЕВО"] = [=](QString value)
     {
+#if defined(ONB)
         device->left(value.toFloat());
+#endif
         scene->left(value.toFloat());
         mProcessing = true;
     };
     proc["ВПРАВО"] = [=](QString value)
     {
+#if defined(ONB)
         device->right(value.toFloat());
+#endif
         scene->right(value.toFloat());
         mProcessing = true;
     };
     proc["ПЕРОПОДНЯТЬ"] = [=]()
     {
+#if defined(ONB)
         device->penUp();
+#endif
         scene->penUp();
         btnPU->setChecked(true);
         mProcessing = true;
@@ -813,7 +851,9 @@ void MainWindow::createProcedures()
     proc["ПП"] = proc["ПЕРОПОДНЯТЬ"];
     proc["ПЕРООПУСТИТЬ"] = [=]()
     {
+#if defined(ONB)
         device->penDown();
+#endif
         scene->penDown();
         btnPD->setChecked(true);
         mProcessing = true;

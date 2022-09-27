@@ -1,12 +1,8 @@
 * {
- font-size: 23pt;
-/* font-family: 'Zekton Rg';*/
-/* color: rgb(0, 31, 57);*/
+ font-size: $font_size;
 }
 MainWindow
 {
-/* background-image: url(':/back.jpg');*/
-/* background-position: center left;*/
  border-image: url(':/back.jpg') 0 0 0 0 repeat repeat;
 }
 QLabel
@@ -15,7 +11,6 @@ QLabel
 }
 QPlainTextEdit, QTextEdit, QLineEdit
 {
-/*    font-size: 32pt;*/
     font-family: Consolas;
     background-color: rgba(255, 255, 255, 0.8);
     border: 3px solid white;

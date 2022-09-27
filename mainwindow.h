@@ -3,12 +3,14 @@
 
 #include <QMainWindow>
 #include <QtWidgets>
+#if defined(ONB)
 #include "objnetvirtualserver.h"
 #include "objnetvirtualinterface.h"
 #include "objnetmaster.h"
+#include "robot.h"
+#endif
 #include "joystickwidget.h"
 #include "led.h"
-#include "robot.h"
 #include "scene.h"
 #ifdef Q_OS_WIN
 //#include "spacemouse.h"
@@ -39,11 +41,14 @@ protected slots:
 private:
     Ui::MainWindow *ui;
 
+#if defined(ONB)
     ObjnetVirtualServer *onbvs;
     ObjnetVirtualInterface *onbvi;
 
     ObjnetMaster *oviMaster;
     Robot *device;
+    QPushButton *enableBtn;
+#endif
 
     Scene *scene;
     QGroupBox *sceneBox;
@@ -66,7 +71,6 @@ private:
 
     Led *connLed;
     QLabel *connlabel;
-    QPushButton *enableBtn;
 
     QStringList mPrograms;
     QString mProgramName;
@@ -172,8 +176,8 @@ private:
 
         ScriptContext(QString text, ScriptContext *parent=nullptr) :
             mPos(0), mOldPos(0),
-            mTextOffset(0),
             mParent(parent),
+            mTextOffset(0),
             mRepCount(0),
             mRepMax(0)
         {
