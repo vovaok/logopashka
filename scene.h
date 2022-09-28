@@ -2,6 +2,7 @@
 #define SCENE_H
 
 #include "panel3d.h"
+#include "robotmodel.h"
 
 class Scene : public QPanel3D
 {
@@ -16,72 +17,29 @@ public:
     } ViewType;
 
 private:
-    Camera3D *mMainCam, *mTopCam, *mFollowingCam;
-    Primitive3D *mFloor;
-    Mesh3D *mBase;
-    Mesh3D *mWheelL, *mWheelR;
-    Mesh3D *mActu;
-    Primitive3D *mPen;
-    DynamicTexture *mPlot;
-    DynamicTexture *mFace;
+    Camera3D *m_mainCam, *m_topCam, *m_followingCam;
+    DynamicTexture *m_plot;
+    Primitive3D *m_floor;
+    RobotModel *m_robot;
 
-    const uint32_t m_eyeColor = 0xFF40A0FF;
-//    uint8_t eyes[16]; // two 8x8 LED matrices
-    int blinking;
-    float sleepy;
-    int eyelid;
-    int eyeSize;
-    int size;
-    int eyeX;
-    int eyeY;
-    int mood;
-    int joy;
-
-
-    const int sheet_resolution_px = 2000;
-    const float vmax = 0.1; // m/s
-    const float wmax = 1.57; // rad/s
-
-    float m_v, m_w;
-    float m_vt, m_wt;
-    float m_wL, m_wR;
-    float m_phiL, m_phiR;
-    float m_x, m_y, m_phi;
-
-    bool mPenEnabled;
-    bool mBusy;
-    float m_cmdTime;
+    const int sheet_resolution_px = 4000;
     int m_clear = 15;
 
     void drawCheckerboard(QPainter *p, const QRect &rect);
-
-    void updateFace();
 
 public:
     Scene();
 
     void integrate(float dt);
 
-    void setControl(float v, float w);
-    void setRobotPose(float x, float y, float phi);
-    void setPenEnabled(bool enable);
+    RobotModel *turtle() {return m_robot;}
 
-    void forward(float value); // cm
-    void backward(float value); // cm
-    void left(float value); // deg
-    void right(float value); // deg
-
-signals:
-    void commandCompleted();
+//signals:
+//    void commandCompleted();
 
 public slots:
-    void penDown() {setPenEnabled(true);}
-    void penUp() {setPenEnabled(false);}
-    void stop();
-
-    void reset();
-
     void setView(ViewType viewtype);
+    void reset();
 };
 
 #endif // SCENE_H

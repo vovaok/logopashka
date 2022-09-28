@@ -23,17 +23,26 @@ win32: {
 }
 
 SOURCES += \
+    logointerpreter.cpp \
+    logoprocedure.cpp \
     main.cpp \
     mainwindow.cpp \
 #    robot.cpp \
     codeeditor.cpp \
+    programcontext.cpp \
+    robotmodel.cpp \
     scene.cpp
 
 HEADERS += \
+    logointerpreter.h \
+    logoprocedure.h \
     mainwindow.h \
 #    robot.h \
     codeeditor.h \
-    scene.h
+    programcontext.h \
+    robotmodel.h \
+    scene.h \
+    turtleinterface.h
 
 #win32: {
 #SOURCES += spacemouse.cpp
