@@ -18,6 +18,11 @@ QPlainTextEdit, QTextEdit, QLineEdit
     padding: .5em;
     selection-background-color: rgb($color2);
 }
+#editor
+{
+/*    padding-right: 0;*/
+    padding: 0;
+}
 /*QToolTip {
  border-radius: 2px;
  font-size: 10pt;
@@ -219,4 +224,32 @@ QSplitter::handle:vertical
                                       stop: 0 transparent,
                                       stop: 0.5 rgb($color2),
                                       stop: 1 transparent);*/
+}
+
+
+QScrollBar:vertical
+{
+/*    border: 3px solid white;*/
+    border-radius: .25em;
+    background: rgba(255, 255, 255, 0.4);
+    width: .5em;
+}
+QScrollBar::handle:vertical
+{
+    background: rgba($color2, 0.6);
+    margin: .1em;
+    border-radius: .2em;
+    min-height: 2em;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical
+{
+    height: 0px;
+}
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical
+{
+    height: 0px;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical
+{
+    background: none;
 }
