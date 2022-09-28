@@ -87,9 +87,14 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     editor = new CodeEditor;
+    editor->setObjectName("editor");
     editor->setMinimumWidth(300);
     editor->viewport()->setCursor(QCursor(QPixmap::fromImage(QImage(":/ibeam.png"))));
     editor->setCursorWidth(3);
+
+//    QScrollBar *bar = new QScrollBar(Qt::Vertical);
+//    editor->verticalScrollBar();
+//    editor->setVerticalScrollBar(bar);
 
     console = new QLineEdit;
     connect(console, &QLineEdit::returnPressed, [=]()
@@ -151,6 +156,12 @@ MainWindow::MainWindow(QWidget *parent)
     QSplitter *splitter = new QSplitter(this);
     splitter->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     splitter->setOrientation(Qt::Vertical);
+//    QWidget *ebox = new QWidget;
+//    QHBoxLayout *elay = new QHBoxLayout;
+//    ebox->setLayout(elay);
+//    elay->addWidget(editor);
+//    elay->addWidget(editor->verticalScrollBar());
+//    splitter->addWidget(ebox);
     splitter->addWidget(editor);
     splitter->addWidget(sceneBox);
 
@@ -203,24 +214,12 @@ MainWindow::MainWindow(QWidget *parent)
     controlLay->addWidget(enableBtn);
 #endif
 
-//    QGridLayout *lay = new QGridLayout;
-//    lay->setSpacing(12);
-////    lay->addLayout(mProgramLayout, 0, 0, 2, 1);
-//    lay->addWidget(mProgramGroup, 0, 0, 3, 1);
-//    lay->addLayout(btnLay, 0, 2);
-//    lay->addWidget(stack, 0, 1, 2, 1);
-//    lay->addWidget(console, 2, 1);
-////    lay->addWidget(splitter, 0, 1, 2, 1);
-//    lay->addLayout(controlLay, 1, 2, 2, 1);
-
     QHBoxLayout *lay = new QHBoxLayout;
     lay->setContentsMargins(16, 16, 16, 16);
     lay->setSpacing(16);
     lay->addWidget(mProgramGroup);
 
     QVBoxLayout *mainlay = new QVBoxLayout;
-//    mainlay->addWidget(editor);
-//    mainlay->addWidget(sceneBox);
     mainlay->addWidget(splitter);
     mainlay->addWidget(console);
     lay->addLayout(mainlay, 1);

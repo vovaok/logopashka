@@ -1,9 +1,17 @@
 #include "codeeditor.h"
+#include <QScrollBar>
 
 CodeEditor::CodeEditor(QWidget *parent) :
     QPlainTextEdit(parent)
 {
-
+    QFontMetrics fm(font());
+    int em = fm.width('m');
+    setViewportMargins(1*em, .5*em, 0, .5*em);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    connect(verticalScrollBar(), &QScrollBar::rangeChanged, [=](int min, int max)
+    {
+        verticalScrollBar()->setHidden(min == max);
+    });
 }
 
 void CodeEditor::highlightLine(int num, QColor lineColor)
