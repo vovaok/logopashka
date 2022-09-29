@@ -28,6 +28,9 @@ protected:
 private:
     TurtleInterface *m_turtle;
 
+    using Token = ProgramContext::Token;
+    Token nextToken();
+
     QMap<QString, LogoProcedure> proc;
 
     QMap<QString, QString> m_vars;
@@ -41,7 +44,8 @@ private:
     void createProcedures();
 
     QString evalExpr(QString expr);
-    QString eval(QString token, bool waitOperand=false, bool dontTestInfix=false);
+    void evalList();
+    QString eval(Token token);
 
     void raiseError(Error error);
 };

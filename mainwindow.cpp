@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
 //        qDebug() << screen->logicalDotsPerInch() << screen->physicalDotsPerInch();
 //        qDebug() << screen->physicalSize();
     }
-    qDebug() << font_size;
+//    qDebug() << font_size;
 
     QFile styleFile(":/style.css");
     styleFile.open(QIODevice::ReadOnly);
@@ -368,11 +368,11 @@ void MainWindow::onTimer()
 
 void MainWindow::run()
 {
-//    save();
-//    editor->setReadOnly(true);
-//    for (QPushButton *btn: mProgramBtns)
-//        btn->setEnabled(false);
-//    QString text = editor->toPlainText();
+    save();
+    editor->setReadOnly(true);
+    for (QPushButton *btn: mProgramBtns)
+        btn->setEnabled(false);
+    QString text = editor->toPlainText();
 //    if (!mProgramName.isEmpty() && mProgramName != "MAIN")
 //        text = mProgramName;
 //    setDebugMode(false);
@@ -382,8 +382,9 @@ void MainWindow::run()
 //#endif
 //    btnScene->setChecked(true);
 
-//    context = new ProgramContext(text, context);
-//    qDebug() << "*** RUN ***";
+    logo->execute(text);
+    connect(logo, &QThread::finished, this, &MainWindow::stop);
+    qDebug() << "*** RUN ***";
 }
 
 //QString MainWindow::evalExpr(QString expr)
@@ -649,6 +650,7 @@ void MainWindow::step()
 
 void MainWindow::stop()
 {
+    disconnect(logo, &QThread::finished, this, &MainWindow::stop);
     mProcessing = false;
 //    while (context)
 //    {

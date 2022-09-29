@@ -18,6 +18,7 @@ public slots:
     void clearHighlights();
 
 protected:
+    void keyPressEvent(QKeyEvent *e);
 
 private:
     QList<QTextEdit::ExtraSelection> m_extraSelections;

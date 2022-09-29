@@ -1,5 +1,6 @@
 #include "codeeditor.h"
 #include <QScrollBar>
+#include <QDebug>
 
 CodeEditor::CodeEditor(QWidget *parent) :
     QPlainTextEdit(parent)
@@ -75,4 +76,22 @@ void CodeEditor::clearHighlights()
 {
     m_extraSelections.clear();
     setExtraSelections(m_extraSelections);
+}
+
+void CodeEditor::keyPressEvent(QKeyEvent *e)
+{
+    if (e->text().toLower() == "х" && e->modifiers() & Qt::ControlModifier)
+    {
+        insertPlainText(e->modifiers() & Qt::ShiftModifier? "{": "[");
+        e->accept();
+    }
+    else if (e->text().toLower() == "ъ" && e->modifiers() & Qt::ControlModifier)
+    {
+        insertPlainText(e->modifiers() & Qt::ShiftModifier? "}": "]");
+        e->accept();
+    }
+    else
+    {
+        QPlainTextEdit::keyPressEvent(e);
+    }
 }

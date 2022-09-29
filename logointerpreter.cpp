@@ -28,7 +28,7 @@ bool LogoInterpreter::execute(QString program)
 
     m_context = new ProgramContext(program);
     start();
-//    m_stack.clear();
+
     return true;
 }
 
@@ -43,8 +43,43 @@ QString LogoInterpreter::result()
 void LogoInterpreter::run()
 {
     m_stack.clear();
+    evalList();
 
-    m_stack.push("23");
+    qDebug() << "STACK: " << m_stack;
+}
+
+LogoInterpreter::Token LogoInterpreter::nextToken()
+{
+    Token token = m_context->nextToken();
+    if (token == "(" || token == "[")
+    {
+        QString end;
+        if (token == "(")
+        {
+            token = Token(Token::Expr, "(");
+            end = ")";
+        }
+        if (token == "[")
+        {
+            token = Token(Token::List, "[");
+            end = "]";
+        }
+        Token next;
+        do
+        {
+            next = nextToken();
+            if (next.isError())
+                return next;
+
+            token += " " + next;
+
+            if (next == end)
+                break;
+        } while (!next.isEof());
+        if (next.isEof())
+            return Token(Token::Error, "Где-то не хватает скобки " + end);
+    }
+    return token;
 }
 
 void LogoInterpreter::setVar(QString name, QString value)
@@ -181,59 +216,59 @@ void LogoInterpreter::createProcedures()
 
     proc["ЭТО"] = [=]()
     {
-        QString procName = m_context->nextToken();
-        QStringList paramNames;
-        while (m_context->testNextToken().startsWith(":"))
-            paramNames << m_context->nextToken().mid(1);
-        QString text = "";
-        int offset = 0;
-        while (!m_context->atEnd())
-        {
-            QString token = m_context->nextToken();
-            if (!offset)
-                offset = m_context->lastPos();
-            if (token == "КОНЕЦ")
-                break;
-            text += token.toUpper() + " ";
-        }
-        qDebug() << "name" << procName << "params" << paramNames << "text:";
-        qDebug() << text;
-        int pcount = paramNames.count();
-        proc[procName].setGeneric(pcount, [=](QStringList params)
-        {
-            QString textcopy = text;
+//        QString procName = m_context->nextToken();
+//        QStringList paramNames;
+//        while (m_context->testNextToken().startsWith(":"))
+//            paramNames << m_context->nextToken().mid(1);
+//        QString text = "";
+//        int offset = 0;
+//        while (!m_context->atEnd())
+//        {
+//            QString token = m_context->nextToken();
+//            if (!offset)
+//                offset = m_context->lastPos();
+//            if (token == "КОНЕЦ")
+//                break;
+//            text += token.toUpper() + " ";
+//        }
+//        qDebug() << "name" << procName << "params" << paramNames << "text:";
+//        qDebug() << text;
+//        int pcount = paramNames.count();
+//        proc[procName].setGeneric(pcount, [=](QStringList params)
+//        {
+//            QString textcopy = text;
+////            for (int i=0; i<pcount; i++)
+////                textcopy.replace(paramNames[i], params[i]);
+//            qDebug() << "STACK" << m_stack;
+//            ProgramContext *oldContext = m_context;
+//            ProgramContext *newContext = new ProgramContext(textcopy, m_context);
+//            newContext->m_textOffset = offset;
+//            newContext->name = procName;
 //            for (int i=0; i<pcount; i++)
-//                textcopy.replace(paramNames[i], params[i]);
-            qDebug() << "STACK" << m_stack;
-            ProgramContext *oldContext = m_context;
-            ProgramContext *newContext = new ProgramContext(textcopy, m_context);
-            newContext->m_textOffset = offset;
-            newContext->name = procName;
-            for (int i=0; i<pcount; i++)
-            {
-                newContext->mLocalVars[paramNames[i]] = params[i];
-            }
-            for (QString &k: newContext->mLocalVars.keys())
-            {
-                qDebug() << procName << "::" << k << "=" << newContext->mLocalVars[k];
-            }
-            m_context = newContext;
-            if (m_stack.size() > 1) // => wait result => eval here
-            {
-                QString result;
-                do
-                {
-                    result = eval(m_context->nextToken());
-                } while (m_context == newContext && !m_context->atEnd());
-                if (m_context != oldContext)
-                {
-                    delete m_context;
-                    m_context = oldContext;
-                }
-                return result;
-            }
-            return QString();
-        });
+//            {
+//                newContext->m_localVars[paramNames[i]] = params[i];
+//            }
+//            for (QString &k: newContext->m_localVars.keys())
+//            {
+//                qDebug() << procName << "::" << k << "=" << newContext->m_localVars[k];
+//            }
+//            m_context = newContext;
+//            if (m_stack.size() > 1) // => wait result => eval here
+//            {
+//                QString result;
+//                do
+//                {
+//                    result = eval(m_context->nextToken());
+//                } while (m_context == newContext && !m_context->atEnd());
+//                if (m_context != oldContext)
+//                {
+//                    delete m_context;
+//                    m_context = oldContext;
+//                }
+//                return result;
+//            }
+//            return QString();
+//        });
     };
 
     proc["ЗАГРУЗИТЬ"] = [=](QString name)
@@ -259,7 +294,59 @@ QString LogoInterpreter::evalExpr(QString expr)
 
 }
 
-QString LogoInterpreter::eval(QString token, bool waitOperand, bool dontTestInfix)
+void LogoInterpreter::evalList()
 {
+    Token token;
+    do
+    {
+        token = nextToken();
+        if (token == "]")
+            token = Token(Token::Error, "Лишняя скобка ]");
+        if (token == ")")
+            token = Token(Token::Error, "Лишняя скобка )");
+        if (token.isError())
+        {
+            m_stack.push(QString::number(m_context->curPos()));
+            m_stack.push("ОШИБКА: " + token);
+            break;
+        }
 
+        eval(token);
+    }
+    while (!token.isEof());
+}
+
+
+QString LogoInterpreter::eval(Token token)
+{
+    qDebug() << "Evaluating " << token.type() << token;
+    QString result;
+    if (token.type() == Token::List)
+    {
+        m_context = new ProgramContext(token.mid(1, token.length() - 2), m_context);
+        evalList();
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+    }
+    else if (token.type() == Token::Expr)
+    {
+        m_context = new ProgramContext(token.mid(1, token.length() - 2), m_context);
+        result = eval(nextToken());
+//        if (!nextToken().isEof())
+//            ;// ERROR: extra code
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+    }
+    else if (token.isNum() || token.isSym())
+    {
+        result = token;
+    }
+    else
+    {
+
+    }
+
+    return result;
 }

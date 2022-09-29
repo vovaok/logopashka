@@ -10,11 +10,26 @@ class ProgramContext
 public:
     ProgramContext(QString text, ProgramContext *parent=nullptr);
 
-    bool isInfixOp(QString token);
+    class Token : public QString
+    {
+    public:
+        enum Type {Comment=0, Ops, Wrd, Var, Num, Sym, Error, Eof, Expr, List} m_type;
+        Token() : m_type(Eof) {}
+        Token(Type type, QString text=QString()) : m_type(type), QString(text) {}
+        Type type() const {return m_type;}
+        bool isOp() const {return m_type == Ops;}
+        bool isVar() const {return m_type == Var;}
+        bool isNum() const {return m_type == Num;}
+        bool isSym() const {return m_type == Sym;}
+        bool isError() const {return m_type == Error;}
+        bool isEof() const {return m_type == Eof;}
+    };
+
+//    bool isInfixOp(QString token);
     QString testInfixOp();
 
-    QString testNextToken();
-    QString nextToken();
+//    QString testNextToken();
+    Token nextToken();
 
     QString var(QString name) const;
 
@@ -46,13 +61,17 @@ public:
     int m_textOffset;
     int m_repCount, m_repMax;
     QString name;
-    QMap<QString, QString> mLocalVars;
+    QMap<QString, QString> m_localVars;
+
+
 
 private:
     ProgramContext *m_parent;
-    int mPos, mOldPos;
+    int m_pos, m_oldPos;
 //        int mTextOffset;
-    QString mText;
+    QString m_text;
+
+    static QString regexps[6];
 };
 
 #endif // PROGRAMCONTEXT_H
