@@ -93,6 +93,8 @@ private slots:
     void step();
     void stop();
 
+    void onLogoError(int start, int end, QString reason);
+
     void listPrograms();
     void save();
     void open(QString name);

@@ -32,6 +32,9 @@ public:
     bool isPenEnabled() const {return m_penEnabled;}
 //    float speed() const {return m_v;}
 
+signals:
+    void needClearScreen();
+
 protected:
     friend class Scene;
     void updateSheet(QPainter *p);

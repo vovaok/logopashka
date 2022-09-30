@@ -43,8 +43,8 @@ public:
 
     bool iterateLoop();
 
-    int lastPos() const;
-    int curPos() const;
+    int lastPos();
+    int curPos();
 
 //        void setVar(QString name, QString value) {mVars[name] = value;}
 //        QString var(QString name)

@@ -18,15 +18,24 @@ static int opPriority(QString op)
 
 LogoInterpreter::LogoInterpreter()
 {
+    m_turtle = nullptr;
+    m_context = nullptr;
+    m_lastProcTokenPos = 0;
     createProcedures();
 }
 
-bool LogoInterpreter::execute(QString program)
+void LogoInterpreter::setTurtle(TurtleInterface *turtle)
+{
+    m_turtle = turtle;
+}
+
+bool LogoInterpreter::execute(QString program, bool debug)
 {
     if (isRunning())
         return false;
 
     m_context = new ProgramContext(program);
+    m_debugMode = debug;
     start();
 
     return true;
@@ -40,12 +49,50 @@ QString LogoInterpreter::result()
         return m_stack.last();
 }
 
+void LogoInterpreter::doDebugStep()
+{
+    m_debugStep.wakeAll();
+}
+
+QString LogoInterpreter::programName()
+{
+    if (m_context)
+        return m_context->name;
+    else
+        return QString();
+}
+
 void LogoInterpreter::run()
 {
+    m_lastProcTokenPos = 0;
     m_stack.clear();
+
     evalList();
 
     qDebug() << "STACK: " << m_stack;
+}
+
+void LogoInterpreter::evalList()
+{
+    Token token;
+    do
+    {
+        token = nextToken();
+        if (token == "]")
+            token = Token(Token::Error, "Лишняя скобка ]");
+        if (token == ")")
+            token = Token(Token::Error, "Лишняя скобка )");
+        if (token.isError())
+        {
+            raiseError(token);
+            break;
+        }
+
+        QString result = eval(token);
+        if (!result.isNull())
+            m_stack.push(result);
+    }
+    while (!token.isEof());
 }
 
 LogoInterpreter::Token LogoInterpreter::nextToken()
@@ -77,9 +124,69 @@ LogoInterpreter::Token LogoInterpreter::nextToken()
                 break;
         } while (!next.isEof());
         if (next.isEof())
+        {
             return Token(Token::Error, "Где-то не хватает скобки " + end);
+        }
     }
     return token;
+}
+
+QString LogoInterpreter::eval(Token token)
+{
+    qDebug() << "Evaluating " << token.type() << token;
+    QString result;
+    if (token.type() == Token::List)
+    {
+        m_context = new ProgramContext(token.mid(1, token.length() - 2), m_context);
+        evalList();
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+    }
+    else if (token.type() == Token::Expr)
+    {
+        m_context = new ProgramContext(token.mid(1, token.length() - 2), m_context);
+        result = eval(nextToken());
+//        if (!nextToken().isEof())
+//            raiseError("Ожидается конец выражения");// ERROR: extra code
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+    }
+    else if (token.isNum() || token.isSym())
+    {
+        result = token;
+    }
+    else if (token.isVar())
+    {
+        result = m_context->var(token);
+        if (result.isNull())
+            raiseError("Переменная :" + token + " не найдена");
+    }
+    else if (proc.contains(token))
+    {
+        m_lastProcTokenPos = m_context->lastPos();
+
+        if (m_debugMode)
+        {
+            QMutex moo;
+            moo.lock();
+            m_debugStep.wait(&moo);
+            moo.unlock();
+        }
+
+        QStringList params;
+        int pcnt = proc[token].paramCount();
+        for (int i=params.count(); i<pcnt; i++)
+        {
+            params << eval(nextToken());
+        }
+        qDebug() << ">>" << token << params;
+        result = proc[token](params);
+        qDebug() << "<<" << result;
+    }
+
+    return result;
 }
 
 void LogoInterpreter::setVar(QString name, QString value)
@@ -91,62 +198,101 @@ QString LogoInterpreter::var(QString name)
 {
     if (m_vars.contains(name))
         return m_vars[name];
-    raiseError(VariableNotFound);
+//    raiseError(VariableNotFound);
     return QString();
 }
 
-void LogoInterpreter::raiseError(Error error)
+void LogoInterpreter::raiseError(QString reason)
 {
-    qWarning() << "LOGO interpreter error" << error;
+    emit error(m_context->lastPos(), m_context->curPos(), reason);
 }
 
 void LogoInterpreter::createProcedures()
 {
     proc["ВПЕРЕД"] = [=](QString value)
     {
-        m_turtle->forward(value.toFloat());
-        while (m_turtle->isBusy());
+        if (m_turtle)
+        {
+            m_turtle->forward(value.toFloat());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
     proc["НАЗАД"] = [=](QString value)
     {
-        m_turtle->backward(value.toFloat());
-        while (m_turtle->isBusy());
+        if (m_turtle)
+        {
+            m_turtle->backward(value.toFloat());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
     proc["ВЛЕВО"] = [=](QString value)
     {
-        m_turtle->left(value.toFloat());
-        while (m_turtle->isBusy());
+        if (m_turtle)
+        {
+            m_turtle->left(value.toFloat());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
     proc["ВПРАВО"] = [=](QString value)
     {
-        m_turtle->right(value.toFloat());
-        while (m_turtle->isBusy());
+        if (m_turtle)
+        {
+            m_turtle->right(value.toFloat());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
     proc["ПЕРОПОДНЯТЬ"] = [=]()
     {
-        m_turtle->penUp();
-        while (m_turtle->isBusy());
+        if (m_turtle)
+        {
+            m_turtle->penUp();
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
     proc["ПП"] = proc["ПЕРОПОДНЯТЬ"];
     proc["ПЕРООПУСТИТЬ"] = [=]()
     {
-        m_turtle->penDown();
-        while (m_turtle->isBusy());
+        if (m_turtle)
+        {
+            m_turtle->penDown();
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
     proc["ПО"] = proc["ПЕРООПУСТИТЬ"];
 
     proc["ОЧИСТИТЬЭКРАН"] = [=]()
     {
-        m_turtle->clearScreen();
+        if (m_turtle)
+        {
+            m_turtle->clearScreen();
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
     };
 
     proc["ПОВТОР"] = [=](QString count, QString list)
     {
-        m_context->dumpVars();
-        m_context = new ProgramContext(list, m_context);
-        m_context->dumpVars();
-        m_context->m_repMax = count.toInt();
-        m_context->m_repCount = 1;
+        for (int i=0; i<count; i++)
+        {
+            qDebug() << list;
+//            m_context = new ProgramContext(list.mid(1, list.length() - 2), m_context);
+//            evalList();
+//            ProgramContext *temp = m_context;
+//            m_context = m_context->parent();
+//            delete temp;
+        }
+
+//        m_context->dumpVars();
+//        m_context = new ProgramContext(list, m_context);
+//        m_context->dumpVars();
+//        m_context->m_repMax = count.toInt();
+//        m_context->m_repCount = 1;
     };
 
     proc["ЕСЛИ"] = [=](QString cond, QString list)
@@ -289,64 +435,4 @@ void LogoInterpreter::createProcedures()
     };
 }
 
-QString LogoInterpreter::evalExpr(QString expr)
-{
 
-}
-
-void LogoInterpreter::evalList()
-{
-    Token token;
-    do
-    {
-        token = nextToken();
-        if (token == "]")
-            token = Token(Token::Error, "Лишняя скобка ]");
-        if (token == ")")
-            token = Token(Token::Error, "Лишняя скобка )");
-        if (token.isError())
-        {
-            m_stack.push(QString::number(m_context->curPos()));
-            m_stack.push("ОШИБКА: " + token);
-            break;
-        }
-
-        eval(token);
-    }
-    while (!token.isEof());
-}
-
-
-QString LogoInterpreter::eval(Token token)
-{
-    qDebug() << "Evaluating " << token.type() << token;
-    QString result;
-    if (token.type() == Token::List)
-    {
-        m_context = new ProgramContext(token.mid(1, token.length() - 2), m_context);
-        evalList();
-        ProgramContext *temp = m_context;
-        m_context = m_context->parent();
-        delete temp;
-    }
-    else if (token.type() == Token::Expr)
-    {
-        m_context = new ProgramContext(token.mid(1, token.length() - 2), m_context);
-        result = eval(nextToken());
-//        if (!nextToken().isEof())
-//            ;// ERROR: extra code
-        ProgramContext *temp = m_context;
-        m_context = m_context->parent();
-        delete temp;
-    }
-    else if (token.isNum() || token.isSym())
-    {
-        result = token;
-    }
-    else
-    {
-
-    }
-
-    return result;
-}

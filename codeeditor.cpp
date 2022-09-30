@@ -80,6 +80,8 @@ void CodeEditor::clearHighlights()
 
 void CodeEditor::keyPressEvent(QKeyEvent *e)
 {
+    clearHighlights();
+
     if (e->text().toLower() == "х" && e->modifiers() & Qt::ControlModifier)
     {
         insertPlainText(e->modifiers() & Qt::ShiftModifier? "{": "[");

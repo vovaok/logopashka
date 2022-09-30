@@ -78,6 +78,7 @@ Scene::Scene()
 //    sheet->setZPos(0.1f);
 
     m_robot = new RobotModel(root());
+    connect(m_robot, &RobotModel::needClearScreen, this, &Scene::reset);
 }
 
 void Scene::drawCheckerboard(QPainter *p, const QRect &rect)

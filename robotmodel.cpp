@@ -116,7 +116,7 @@ void RobotModel::penDown()
 void RobotModel::clearScreen()
 {
     reset();
-    // emit needClearScreen();
+    emit needClearScreen();
 }
 
 void RobotModel::stop()
@@ -150,7 +150,6 @@ void RobotModel::integrate(float dt)
             m_cmdTime = 0;
             m_vt = m_wt = 0;
             m_busy = false;
-//            emit commandCompleted();
         }
     }
 
@@ -202,10 +201,10 @@ void RobotModel::reset()
     m_phiL = m_phiR = 0;
     m_x = m_y = m_phi = 0;
     m_penEnabled = false;
-    m_busy = false;
     m_cmdTime = 0;
     mWheelL->setZRot(0);
     mWheelR->setZRot(0);
+    m_busy = false;
 }
 
 void RobotModel::updateFace()

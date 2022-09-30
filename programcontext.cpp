@@ -72,7 +72,10 @@ ProgramContext::Token ProgramContext::nextToken()
     }
     if (m_pos == m_text.length())
         return Token(Token::Eof, "$"); // end of file
-    return Token(Token::Error, "?"); // error
+    m_oldPos = m_pos;
+    rx.setPattern("(\\s|$)");
+    m_pos = rx.indexIn(m_text, m_pos, QRegExp::CaretAtOffset);
+    return Token(Token::Error, "Неопознанный символ"); // error
 }
 
 QString ProgramContext::var(QString name) const
@@ -112,6 +115,18 @@ bool ProgramContext::iterateLoop()
     return false;
 }
 
-int ProgramContext::lastPos() const {return m_oldPos + m_textOffset;}
+int ProgramContext::lastPos()
+{
+    int pos = m_oldPos + m_textOffset;
+//    for (ProgramContext *ctx = this; ctx; ctx = ctx->parent())
+//        pos += ctx->m_textOffset;
+    return pos;
+}
 
-int ProgramContext::curPos() const {return m_pos + m_textOffset - 1;}
+int ProgramContext::curPos()
+{
+    int pos = m_pos + m_textOffset;// - 1;
+//    for (ProgramContext *ctx = this; ctx; ctx = ctx->parent())
+//        pos += ctx->m_textOffset;
+    return pos;
+}

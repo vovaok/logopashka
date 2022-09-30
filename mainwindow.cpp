@@ -101,6 +101,12 @@ MainWindow::MainWindow(QWidget *parent)
     console = new QLineEdit;
     connect(console, &QLineEdit::returnPressed, [=]()
     {
+        QMetaObject::Connection conn = connect(logo, &LogoInterpreter::error, [=](int start, int end, QString reason)
+        {
+            disconnect(conn);
+            console->setSelection(start, end);
+            connlabel->setText("ОШИБКА:" + reason);
+        });
         logo->execute(console->text());
     });
 
@@ -126,6 +132,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     scene = new Scene();
     turtle = scene->turtle();
+    logo->setTurtle(turtle);
+
     QPushButton *btnCamMain = new QPushButton("fly");
     btnCamMain->setStyleSheet("min-width: 100px;");
     btnCamMain->setCheckable(true);
@@ -352,6 +360,18 @@ void MainWindow::onTimer()
 
     scene->integrate(dt);
 
+    if (logo->isRunning())
+    {
+        QColor selColor(139, 237, 139);
+        QColor lineColor(139, 227, 237, 192);
+        editor->clearHighlights();
+        editor->highlightText(logo->lastProcPos(), logo->curPos(), selColor, lineColor);
+        QTextCursor cur = editor->textCursor();
+        cur.setPosition(logo->lastProcPos());
+        editor->setTextCursor(cur);
+        editor->ensureCursorVisible();
+    }
+
 #if defined(ONB)
     bool conn = device->isValid() && device->isPresent();
     connLed->setState(conn);
@@ -369,6 +389,7 @@ void MainWindow::onTimer()
 void MainWindow::run()
 {
     save();
+    editor->clearHighlights();
     editor->setReadOnly(true);
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(false);
@@ -382,7 +403,9 @@ void MainWindow::run()
 //#endif
 //    btnScene->setChecked(true);
 
-    logo->execute(text);
+    connect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
+
+    logo->execute(text, mDebug);
     connect(logo, &QThread::finished, this, &MainWindow::stop);
     qDebug() << "*** RUN ***";
 }
@@ -570,103 +593,44 @@ void MainWindow::step()
 {
     if (!isRunning())
     {
+        setDebugMode(true);
         run();
-//        return;
     }
-
-//    QString token = context->testNextToken();
-
-//    if (token.isEmpty())
-//    {
-//        ProgramContext *oldContext = context;
-//        context = context->parent();
-//        delete oldContext;
-//        if (!context)
-//            stop();
-//    }
-
-   // qDebug() << "RUN" << token;
-
-//    if (context)
-//    {
-//        QString result;
-////        do
-////        {
-////            result = eval(context->nextToken());
-////            if (result.isEmpty())
-////                break;
-////            mStack << result;
-////            qDebug() << "stack:" << mStack;
-////        } while (!context->atEnd());
-
-//        QString ctxName;
-//        ProgramContext *curctx = context;
-//        do
-//        {
-//            ctxName = curctx->name;
-//            curctx = curctx->parent();
-//        } while(ctxName.isEmpty() && curctx);
-//        if (ctxName.isEmpty())
-//            ctxName = "MAIN";
-
-//        if (ctxName != mProgramName)
-//        {
-//            open(ctxName);
-//        }
-
-//        QColor selColor(139, 237, 139);
-//        QColor lineColor(139, 227, 237, 192);
-//        editor->clearHighlights();
-
-//        QString token = context->nextToken();
-//        editor->highlightText(context->lastPos(), context->curPos(), selColor, lineColor);
-//        qDebug() << "context:" << ctxName;
-//        result = eval(token);
-
-//        QTextCursor cur = editor->textCursor();
-//        cur.setPosition(context->lastPos());
-//        editor->setTextCursor(cur);
-//        editor->ensureCursorVisible();
-////        editor->centerCursor();
-
-//        if (context && context->atEnd())
-//        {
-//            if (!context->iterateLoop())
-//            {
-//                ProgramContext *oldContext = context;
-//                context = context->parent();
-//                delete oldContext;
-//            }
-//        }
-
-//        if (!context)
-//            stop();
-
-////        QString result = eval(token);
-////        qDebug() << "result =" << result;
-
-//    }
+    else
+    {
+        logo->doDebugStep();
+    }
 }
 
 void MainWindow::stop()
 {
     disconnect(logo, &QThread::finished, this, &MainWindow::stop);
     mProcessing = false;
-//    while (context)
-//    {
-//        ProgramContext *temp = context;
-//        context = context->parent();
-//        delete temp;
-//    }
-    editor->clearHighlights();
+
+//    editor->clearHighlights();
+
 #if defined(ONB)
     device->stop();
     enableBtn->setChecked(false);
 #endif
+
     editor->setReadOnly(false);
     for (QPushButton *btn: mProgramBtns)
         btn->setEnabled(true);
     qDebug() << "*** STOP ***";
+}
+
+void MainWindow::onLogoError(int start, int end, QString reason)
+{
+    disconnect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
+    if (mPrograms.contains(logo->programName()))
+    {
+        open(logo->programName());
+    }
+    qDebug() << "errorer" << start << end;
+
+    editor->highlightText(start, end, Qt::red, QColor(255, 0, 0, 64));
+    console->setText("ОШИБКА: " + reason);
 }
 
 void MainWindow::listPrograms()
@@ -709,7 +673,7 @@ void MainWindow::listPrograms()
             save();
             open(programName);
             editor->show();
-            sceneBox->hide();
+//            sceneBox->hide();
             btnScene->setChecked(false);
         });
         mPrograms << programName.toUpper();
