@@ -1,21 +1,21 @@
 #include "programcontext.h"
 
-QString ProgramContext::regexps[6] =
+QString ProgramContext::regexps[7] =
 {
     "^\\s*;.*(\\r?\\n|$)",
-    "^\\s*(!=|<>|<=|>=|\\+|\\-|\\*|\\/|\\%\\^|<|>|=|\\[|\\]|\\(|\\))\\s*",
-    "^\\s*([a-zA-Zа-яёА-ЯЁ\\.]\\w*\\??)\\s*",
-    "^\\s*:([a-zA-Zа-яёА-ЯЁ]\\w*)\\s*",
-    "^\\s*(\\d+(?:\\.\\d+)?)\\s*",
-    "^\\s*\"([a-zA-Zа-яёА-ЯЁ]\\w*)\\s*"
+    "^\\s*(!=|<>|<=|>=|\\+|\\-|\\*|\\/|\\%\\^|<|>|=|\\[|\\]|\\(|\\))(\\s*)",
+    "^\\s*([a-zA-Zа-яёА-ЯЁ\\.]\\w*\\??)(\\s*)",
+    "^\\s*:([a-zA-Zа-яёА-ЯЁ]\\w*)(\\s*)",
+    "^\\s*(\\d+(?:\\.\\d+)?)(\\s*)",
+    "^\\s*\"([a-zA-Zа-яёА-ЯЁ]\\w*)(\\s*)",
+    "^(\\s+)"
 };
 
 ProgramContext::ProgramContext(QString text, ProgramContext *parent) :
     m_parent(parent),
-    m_pos(0), m_oldPos(0),
     m_textOffset(0),
-    m_repCount(0),
-    m_repMax(0)
+    m_pos(0), m_oldPos(0),
+    m_tokenPos(0), m_tokenEndPos(0)
 {
     m_text = text;
     m_textOffset = parent? parent->lastPos()+1: 0;
@@ -55,7 +55,7 @@ QString ProgramContext::testInfixOp()
 ProgramContext::Token ProgramContext::nextToken()
 {
     QRegExp rx;
-    for (int i=0; i<6; i++)
+    for (int i=0; i<7; i++)
     {
         rx.setPattern(regexps[i]);
         rx.setMinimal(!i); // comment is minimal
@@ -64,26 +64,67 @@ ProgramContext::Token ProgramContext::nextToken()
         {
             m_oldPos = idx;
             m_pos = idx + rx.matchedLength();
-            if (i) // if it is not comment
-                return Token(static_cast<Token::Type>(i), rx.cap(1).toUpper());
-            else
+            if (i == Token::Comment || i == Token::Empty)
                 return nextToken();
+            m_tokenPos = rx.pos(1);
+            m_tokenEndPos = rx.pos(2);
+            QString body = rx.cap(1);
+            if (body == "[")
+                return fetchListOrExpr(false);
+            else if (body == "(")
+                return fetchListOrExpr(true);
+            return Token(static_cast<Token::Type>(i), body.toUpper().replace("Ё", "Е"));
         }
     }
     if (m_pos == m_text.length())
-        return Token(Token::Eof, "$"); // end of file
+        return Token::Eof;
     m_oldPos = m_pos;
     rx.setPattern("(\\s|$)");
-    m_pos = rx.indexIn(m_text, m_pos, QRegExp::CaretAtOffset);
-    return Token(Token::Error, "Неопознанный символ"); // error
+    int idx = rx.indexIn(m_text, m_pos, QRegExp::CaretAtOffset);
+    if (idx >= 0)
+        m_pos += rx.matchedLength();
+    return Token(Token::Error, "Неопознанный символ " + m_text.mid(m_oldPos, m_pos - m_oldPos)); // error
 }
 
-QString ProgramContext::var(QString name) const
+ProgramContext::Token ProgramContext::fetchListOrExpr(bool isExpr)
+{
+    int pcnt = isExpr? 1: 0;
+    int bcnt = isExpr? 0: 1;
+
+    for (; m_pos < m_text.length() && ((bcnt && !isExpr) || (pcnt && isExpr)); m_pos++)
+    {
+        if (m_text[m_pos] == '[')
+            bcnt++;
+        else if (m_text[m_pos] == ']')
+            --bcnt;
+
+        if (m_text[m_pos] == '(')
+            pcnt++;
+        else if (m_text[m_pos] == ')')
+            --pcnt;
+    }
+
+    if (bcnt > 0)
+        return Token(Token::Error, "Не хватает скобки ]");
+    else if (bcnt < 0)
+        return Token(Token::Error, "Лишняя скобка ]");
+    else if (pcnt > 0)
+        return Token(Token::Error, "Не хватает скобки )");
+    else if (pcnt < 0)
+        return Token(Token::Error, "Лишняя скобка )");
+
+    m_tokenEndPos = m_pos;
+
+    return Token(isExpr? Token::Expr: Token::List, m_text.mid(m_oldPos, m_pos - m_oldPos));
+}
+
+QString ProgramContext::var(QString name)
 {
     if (m_localVars.contains(name))
         return m_localVars[name];
-    else
-        return QString();
+    else if (m_parent)
+        return m_parent->var(name);
+    return QString();
 }
 
 void ProgramContext::dumpVars() const
@@ -104,29 +145,23 @@ void ProgramContext::restart()
     m_pos = 0;
 }
 
-bool ProgramContext::iterateLoop()
+int ProgramContext::lastPos() const
 {
-    if (m_repMax && m_repCount < m_repMax)
-    {
-        m_repCount++;
-        restart();
-        return true;
-    }
-    return false;
+    return m_oldPos + m_textOffset;
 }
 
-int ProgramContext::lastPos()
+int ProgramContext::curPos() const
 {
-    int pos = m_oldPos + m_textOffset;
-//    for (ProgramContext *ctx = this; ctx; ctx = ctx->parent())
-//        pos += ctx->m_textOffset;
-    return pos;
+    return m_pos + m_textOffset;// - 1;
 }
 
-int ProgramContext::curPos()
+int ProgramContext::tokenPos() const
 {
-    int pos = m_pos + m_textOffset;// - 1;
-//    for (ProgramContext *ctx = this; ctx; ctx = ctx->parent())
-//        pos += ctx->m_textOffset;
-    return pos;
+    return m_tokenPos + m_textOffset;
 }
+
+int ProgramContext::tokenEndPos() const
+{
+    return m_tokenEndPos + m_textOffset;
+}
+

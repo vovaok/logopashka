@@ -13,6 +13,8 @@ CodeEditor::CodeEditor(QWidget *parent) :
     {
         verticalScrollBar()->setHidden(min == max);
     });
+
+    connect(this, &CodeEditor::textChanged, this, &CodeEditor::clearHighlights);
 }
 
 void CodeEditor::highlightLine(int num, QColor lineColor)
@@ -49,6 +51,7 @@ void CodeEditor::highlightText(int pos1, int pos2, QColor color, QColor lineColo
         m_extraSelections.append(selection);
 
         selection.format.setBackground(color);
+        selection.format.setTextOutline(QPen(Qt::black)); // bold
         selection.format.setProperty(QTextFormat::FullWidthSelection, false);
         selection.cursor.setPosition(pos2, QTextCursor::KeepAnchor);
         m_extraSelections.append(selection);
@@ -80,8 +83,6 @@ void CodeEditor::clearHighlights()
 
 void CodeEditor::keyPressEvent(QKeyEvent *e)
 {
-    clearHighlights();
-
     if (e->text().toLower() == "х" && e->modifiers() & Qt::ControlModifier)
     {
         insertPlainText(e->modifiers() & Qt::ShiftModifier? "{": "[");

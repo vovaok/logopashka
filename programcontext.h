@@ -13,7 +13,7 @@ public:
     class Token : public QString
     {
     public:
-        enum Type {Comment=0, Ops, Wrd, Var, Num, Sym, Error, Eof, Expr, List} m_type;
+        enum Type {Comment=0, Ops, Wrd, Var, Num, Sym, Empty, Error, Eof, Expr, List} m_type;
         Token() : m_type(Eof) {}
         Token(Type type, QString text=QString()) : m_type(type), QString(text) {}
         Type type() const {return m_type;}
@@ -43,23 +43,18 @@ public:
 
     bool iterateLoop();
 
-    int lastPos();
-    int curPos();
+    int lastPos() const;
+    int curPos() const;
+    int tokenPos() const;
+    int tokenEndPos() const;
 
-//        void setVar(QString name, QString value) {mVars[name] = value;}
-//        QString var(QString name)
-//        {
-//            if (mVars.contains(name))
-//                return mVars[name];
-//            else if (mParent)
-//                return mParent->var(name);
-//            return "";
-//        }
+    void setVar(QString name, QString value) {m_localVars[name] = value;}
+    QString var(QString name);
 
 //        QString mLastOp;
 //        QStringList mStack;
+
     int m_textOffset;
-    int m_repCount, m_repMax;
     QString name;
     QMap<QString, QString> m_localVars;
 
@@ -68,10 +63,13 @@ public:
 private:
     ProgramContext *m_parent;
     int m_pos, m_oldPos;
+    int m_tokenPos, m_tokenEndPos;
 //        int mTextOffset;
     QString m_text;
 
-    static QString regexps[6];
+    static QString regexps[7];
+
+    Token fetchListOrExpr(bool isExpr);
 };
 
 #endif // PROGRAMCONTEXT_H

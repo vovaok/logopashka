@@ -18,14 +18,31 @@ public:
 
     void setTurtle(TurtleInterface *turtle);
 
-    bool execute(QString program, bool debug = false);
-    QString result();
+    class Result : public QString
+    {
+    public:
+        enum Type {Value, Void, Error};
+        Type type() const {return m_type;}
+        bool isVoid() const {return m_type == Void;}
+        bool isError() const {return m_type == Error;}
+        Result() : m_type(Void) {}
+        Result(const QString &data) : QString(data), m_type(Value) {}
+        Result(Type type, const QString &data=QString()) : QString(data), m_type(type) {}
 
+    private:
+        Type m_type;
+    };
+
+    bool execute(QString program, bool debug = false);
+    void stop();
+    Result result();
+
+    void setDebugMode(bool enabled);
     void doDebugStep();
 
     QString programName();
-    int curPos() const {return m_context? m_context->curPos(): -1;}
-    int lastProcPos() const {return m_context? m_lastProcTokenPos: -1;}
+
+    bool isErrorState() const {return m_errorState;}
 
 //    typedef enum
 //    {
@@ -37,6 +54,7 @@ protected:
     void run() override;
 
 signals:
+    void procedureFetched(int start, int end);
     void error(int start, int end, QString reason);
 
 private:
@@ -47,13 +65,13 @@ private:
     using Token = ProgramContext::Token;
     Token nextToken();
 
-    QString eval(Token token);
+    Result eval(Token token);
 
     QMap<QString, LogoProcedure> proc;
 
-    QMap<QString, QString> m_vars;
-    void setVar(QString name, QString value);
-    QString var(QString name);
+//    QMap<QString, QString> m_vars;
+//    void setVar(QString name, QString value);
+//    QString var(QString name);
 
     QStack<QString> m_stack;
     ProgramContext *m_context;
@@ -65,10 +83,10 @@ private:
 //    QString m_errorString;
     void raiseError(QString reason);
 
-    int m_lastProcTokenPos;
-
     bool m_debugMode;
     QWaitCondition m_debugStep;
+
+    bool m_errorState;
 };
 
 #endif // LOGOINTERPRETER_H

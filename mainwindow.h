@@ -93,6 +93,7 @@ private slots:
     void step();
     void stop();
 
+    void onLogoProcedureFetched(int start, int end);
     void onLogoError(int start, int end, QString reason);
 
     void listPrograms();

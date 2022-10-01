@@ -189,7 +189,7 @@ void RobotModel::setPenEnabled(bool enable)
 {
     m_penEnabled = enable;
     mActu->setYRot(enable? 0: 5);
-    m_cmdTime = 0.5f;
+    m_cmdTime = 0.1f;
     m_busy = true;
 }
 

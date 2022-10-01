@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("LogoPashka");
-    showFullScreen();
+//    showFullScreen();
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
@@ -36,6 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     setStyleSheet(css);
 
     logo = new LogoInterpreter;
+    connect(logo, &LogoInterpreter::procedureFetched, this, &MainWindow::onLogoProcedureFetched);
 
 //    #ifdef Q_OS_WIN
 //    joy3D = new SpaceMouse(this);
@@ -360,17 +361,17 @@ void MainWindow::onTimer()
 
     scene->integrate(dt);
 
-    if (logo->isRunning())
-    {
-        QColor selColor(139, 237, 139);
-        QColor lineColor(139, 227, 237, 192);
-        editor->clearHighlights();
-        editor->highlightText(logo->lastProcPos(), logo->curPos(), selColor, lineColor);
-        QTextCursor cur = editor->textCursor();
-        cur.setPosition(logo->lastProcPos());
-        editor->setTextCursor(cur);
-        editor->ensureCursorVisible();
-    }
+//    if (logo->isRunning())
+//    {
+//        QColor selColor(139, 237, 139);
+//        QColor lineColor(139, 227, 237, 192);
+//        editor->clearHighlights();
+//        editor->highlightText(logo->lastProcPos(), logo->curPos(), selColor, lineColor);
+//        QTextCursor cur = editor->textCursor();
+//        cur.setPosition(logo->lastProcPos());
+//        editor->setTextCursor(cur);
+//        editor->ensureCursorVisible();
+//    }
 
 #if defined(ONB)
     bool conn = device->isValid() && device->isPresent();
@@ -388,6 +389,16 @@ void MainWindow::onTimer()
 
 void MainWindow::run()
 {
+    if (logo->isRunning())
+    {
+        if (mDebug)
+        {
+            setDebugMode(false);
+            logo->setDebugMode(false);
+        }
+        return;
+    }
+
     save();
     editor->clearHighlights();
     editor->setReadOnly(true);
@@ -598,6 +609,7 @@ void MainWindow::step()
     }
     else
     {
+        logo->setDebugMode(true);
         logo->doDebugStep();
     }
 }
@@ -605,9 +617,14 @@ void MainWindow::step()
 void MainWindow::stop()
 {
     disconnect(logo, &QThread::finished, this, &MainWindow::stop);
+    logo->stop();
+    setDebugMode(false);
     mProcessing = false;
 
-//    editor->clearHighlights();
+    turtle->stop();
+
+    if (!logo->isErrorState())
+        editor->clearHighlights();
 
 #if defined(ONB)
     device->stop();
@@ -620,6 +637,18 @@ void MainWindow::stop()
     qDebug() << "*** STOP ***";
 }
 
+void MainWindow::onLogoProcedureFetched(int start, int end)
+{
+    QColor selColor(139, 237, 139);
+    QColor lineColor(139, 227, 237, 192);
+    editor->clearHighlights();
+    editor->highlightText(start, end, selColor, lineColor);
+    QTextCursor cur = editor->textCursor();
+    cur.setPosition(start);
+    editor->setTextCursor(cur);
+    editor->ensureCursorVisible();
+}
+
 void MainWindow::onLogoError(int start, int end, QString reason)
 {
     disconnect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
@@ -627,7 +656,6 @@ void MainWindow::onLogoError(int start, int end, QString reason)
     {
         open(logo->programName());
     }
-    qDebug() << "errorer" << start << end;
 
     editor->highlightText(start, end, Qt::red, QColor(255, 0, 0, 64));
     console->setText("ОШИБКА: " + reason);
