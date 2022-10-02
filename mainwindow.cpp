@@ -105,7 +105,7 @@ MainWindow::MainWindow(QWidget *parent)
         QMetaObject::Connection conn = connect(logo, &LogoInterpreter::error, [=](int start, int end, QString reason)
         {
             disconnect(conn);
-            console->setSelection(start, end);
+//            console->setSelection(start, end);
             connlabel->setText("ОШИБКА:" + reason);
         });
         logo->execute(console->text());
@@ -113,7 +113,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(logo, &QThread::finished, [=]()
     {
-        console->setText(logo->result());
+        if (!logo->isErrorState())
+            console->setText(logo->result());
         console->selectAll();
     });
 
@@ -618,13 +619,21 @@ void MainWindow::stop()
 {
     disconnect(logo, &QThread::finished, this, &MainWindow::stop);
     logo->stop();
-    setDebugMode(false);
+    logo->wait(1000);
+    logo->terminate(); // hard stop
     mProcessing = false;
 
     turtle->stop();
 
     if (!logo->isErrorState())
+    {
+        setDebugMode(false);
         editor->clearHighlights();
+    }
+    else
+    {
+        setDebugMode(true);
+    }
 
 #if defined(ONB)
     device->stop();
@@ -657,6 +666,7 @@ void MainWindow::onLogoError(int start, int end, QString reason)
         open(logo->programName());
     }
 
+    editor->clearHighlights();
     editor->highlightText(start, end, Qt::red, QColor(255, 0, 0, 64));
     console->setText("ОШИБКА: " + reason);
 }

@@ -3,7 +3,7 @@
 QString ProgramContext::regexps[7] =
 {
     "^\\s*;.*(\\r?\\n|$)",
-    "^\\s*(!=|<>|<=|>=|\\+|\\-|\\*|\\/|\\%\\^|<|>|=|\\[|\\]|\\(|\\))(\\s*)",
+    "^\\s*(!=|<>|<=|>=|\\+|\\-|\\*|\\/|\\%|\\^|<|>|=|\\[|\\]|\\(|\\))(\\s*)",
     "^\\s*([a-zA-Zа-яёА-ЯЁ\\.]\\w*\\??)(\\s*)",
     "^\\s*:([a-zA-Zа-яёА-ЯЁ]\\w*)(\\s*)",
     "^\\s*(\\d+(?:\\.\\d+)?)(\\s*)",
@@ -21,7 +21,7 @@ ProgramContext::ProgramContext(QString text, ProgramContext *parent) :
     m_textOffset = parent? parent->lastPos()+1: 0;
     if (parent)
     {
-        for (QString k: parent->m_localVars.keys())
+        for (QString &k: parent->m_localVars.keys())
             m_localVars[k] = parent->m_localVars[k];
     }
 }
@@ -34,13 +34,16 @@ ProgramContext::ProgramContext(QString text, ProgramContext *parent) :
 //    return true;
 //}
 
-QString ProgramContext::testInfixOp()
+ProgramContext::Token ProgramContext::testInfixOp()
 {
-    QRegExp rx("^\\s*([+\\-*/\\^<>=]|>=|<=|<>)");
+    QRegExp rx(regexps[Token::Ops]);
     int idx = rx.indexIn(m_text, m_pos, QRegExp::CaretAtOffset);
     if (idx < 0)
-        return "";
-    return rx.cap(1).toUpper();
+        return Token::Empty;
+    QString op = rx.cap(1);
+    if (op == "(" || op == ")" || op == "[" || op == "]")
+        return Token::Empty;
+    return Token(Token::Ops, op);
 }
 
 //QString ProgramContext::testNextToken()
@@ -104,6 +107,11 @@ ProgramContext::Token ProgramContext::fetchListOrExpr(bool isExpr)
             --pcnt;
     }
 
+    // eat spaces
+    QRegExp rx("^\\s*");
+    if (rx.indexIn(m_text, m_pos, QRegExp::CaretAtOffset) >= 0)
+        m_pos += rx.matchedLength();
+
     if (bcnt > 0)
         return Token(Token::Error, "Не хватает скобки ]");
     else if (bcnt < 0)
@@ -118,13 +126,28 @@ ProgramContext::Token ProgramContext::fetchListOrExpr(bool isExpr)
     return Token(isExpr? Token::Expr: Token::List, m_text.mid(m_oldPos, m_pos - m_oldPos));
 }
 
-QString ProgramContext::var(QString name)
+void ProgramContext::setVar(QString name, QString value)
+{
+    m_localVars[name] = value;
+    for (ProgramContext *ctx = m_parent; ctx; ctx = ctx->m_parent)
+    {
+        if (ctx->m_localVars.contains(name))
+            ctx->m_localVars[name] = value;
+    }
+}
+
+QString ProgramContext::var(QString name) const
 {
     if (m_localVars.contains(name))
         return m_localVars[name];
     else if (m_parent)
         return m_parent->var(name);
     return QString();
+}
+
+QString ProgramContext::text(int start, int end) const
+{
+    return m_text.mid(start, end<0? -1: end-start);
 }
 
 void ProgramContext::dumpVars() const
@@ -164,4 +187,3 @@ int ProgramContext::tokenEndPos() const
 {
     return m_tokenEndPos + m_textOffset;
 }
-

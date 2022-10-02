@@ -5,9 +5,11 @@
 #include <QWaitCondition>
 #include <QMutex>
 #include <QStack>
+#include <QRandomGenerator>
 #include "turtleinterface.h"
 #include "logoprocedure.h"
 #include "programcontext.h"
+#include <math.h>
 
 class LogoInterpreter : public QThread
 {
@@ -44,12 +46,6 @@ public:
 
     bool isErrorState() const {return m_errorState;}
 
-//    typedef enum
-//    {
-//        NoError = 0,
-//        VariableNotFound
-//    } ErrorType;
-
 protected:
     void run() override;
 
@@ -61,6 +57,7 @@ private:
     TurtleInterface *m_turtle;
 
     void evalList();
+    void evalList(QString list);
 
     using Token = ProgramContext::Token;
     Token nextToken();
@@ -69,24 +66,22 @@ private:
 
     QMap<QString, LogoProcedure> proc;
 
-//    QMap<QString, QString> m_vars;
-//    void setVar(QString name, QString value);
-//    QString var(QString name);
-
     QStack<QString> m_stack;
     ProgramContext *m_context;
+    int m_lastPrecedence;
 
     int opPriority(QString op);
     void createProcedures();
+    Result infixOp(QString left, Token op, QString right);
 
-//    int m_errorStart, m_errorEnd;
-//    QString m_errorString;
     void raiseError(QString reason);
 
     bool m_debugMode;
     QWaitCondition m_debugStep;
 
     bool m_errorState;
+
+    QString removeBrackets(QString list);
 };
 
 #endif // LOGOINTERPRETER_H

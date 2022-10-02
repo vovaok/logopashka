@@ -115,6 +115,8 @@ void RobotModel::penDown()
 
 void RobotModel::clearScreen()
 {
+    m_cmdTime = 0.25f;
+    m_busy = true;
     reset();
     emit needClearScreen();
 }

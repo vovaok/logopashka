@@ -25,13 +25,8 @@ public:
         bool isEof() const {return m_type == Eof;}
     };
 
-//    bool isInfixOp(QString token);
-    QString testInfixOp();
-
-//    QString testNextToken();
+    Token testInfixOp();
     Token nextToken();
-
-    QString var(QString name) const;
 
     void dumpVars() const;
 
@@ -41,24 +36,19 @@ public:
 
     void restart();
 
-    bool iterateLoop();
-
     int lastPos() const;
     int curPos() const;
     int tokenPos() const;
     int tokenEndPos() const;
 
-    void setVar(QString name, QString value) {m_localVars[name] = value;}
-    QString var(QString name);
-
-//        QString mLastOp;
-//        QStringList mStack;
+    void setVar(QString name, QString value);
+    QString var(QString name) const;
 
     int m_textOffset;
     QString name;
     QMap<QString, QString> m_localVars;
 
-
+    QString text(int start=0, int end=-1) const;
 
 private:
     ProgramContext *m_parent;
