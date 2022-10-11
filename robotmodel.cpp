@@ -8,6 +8,7 @@ RobotModel::RobotModel(Object3D *parent) :
     m_phiL(0), m_phiR(0),
     m_x(0), m_y(0), m_phi(0),
     m_oldx(0), m_oldy(0),
+    m_penColor(Qt::red),
     m_penEnabled(false)
 {
     m_busy = false;
@@ -45,19 +46,20 @@ RobotModel::RobotModel(Object3D *parent) :
 
     mPen = new Primitive3D(mActu);
     mPen->setCylinder(0.4, 12);
-    mPen->setColor(Qt::red);
+//    mPen->setColor(Qt::red);
     mPen->setPosition(-8.5, 0, -1.0);
 
     Primitive3D *pr = new Primitive3D(mPen);
     pr->setCone(0.2, 0.4, 1);
-    pr->setColor(Qt::red);
+//    pr->setColor(Qt::red);
     pr->setPosition(0, 0, -1.0);
 
     pr = new Primitive3D(pr);
     pr->setCylinder(0.1, 0.5);
-    pr->setColor(Qt::darkRed);
+//    pr->setColor(Qt::darkRed);
     pr->setPosition(0, 0, -0.5);
 
+    setPenColor(m_penColor);
     setPenEnabled(false);
 
     Primitive3D *face = new Primitive3D(mBase);
@@ -113,11 +115,29 @@ void RobotModel::penDown()
     setPenEnabled(true);
 }
 
+void RobotModel::arc(float radius, float degrees)
+{
+    m_vt = degrees > 0? vmax: -vmax;
+    m_wt = m_vt / (radius * 0.01f);
+    if (m_wt > wmax)
+    {
+        m_vt *= wmax / m_wt;
+        m_wt = wmax;
+    }
+    else if (m_wt < -wmax)
+    {
+        m_vt *= -wmax / m_wt;
+        m_wt = -wmax;
+    }
+    m_cmdTime = fabs(degrees * M_PI / 180 / m_wt);
+    m_busy = true;
+}
+
 void RobotModel::clearScreen()
 {
+    reset();
     m_cmdTime = 0.25f;
     m_busy = true;
-    reset();
     emit needClearScreen();
 }
 
@@ -127,6 +147,13 @@ void RobotModel::stop()
     m_wt = 0;
     m_cmdTime = 0;
     m_busy = true;
+}
+
+void RobotModel::setColor(unsigned int rgb)
+{
+    m_cmdTime = 0.1f;
+    m_busy = true;
+    setPenColor(QColor::fromRgb(rgb));
 }
 
 void RobotModel::integrate(float dt)
@@ -164,9 +191,11 @@ void RobotModel::integrate(float dt)
     m_v = (m_wR - m_wL) * r / 2;
     m_w = (m_wR + m_wL) * r / (2*b);
 
+    m_x += m_v * cosf(m_phi) * dt/2;
+    m_y += m_v * sinf(m_phi) * dt/2;
     m_phi += m_w * dt;
-    m_x += m_v * cosf(m_phi) * dt;
-    m_y += m_v * sinf(m_phi) * dt;
+    m_x += m_v * cosf(m_phi) * dt/2;
+    m_y += m_v * sinf(m_phi) * dt/2;
 
     mWheelL->setZRot(-m_phiL * 180 / M_PI);
     mWheelR->setZRot(-m_phiR * 180 / M_PI);
@@ -320,12 +349,20 @@ void RobotModel::updateFace()
     mFace->paintEnd();
 }
 
+void RobotModel::setPenColor(QColor color)
+{
+    m_penColor = color;
+    mPen->setColor(color, Qt::white, Qt::black, 0.25, 10);
+    qobject_cast<Object3D*>(mPen->children().at(0))->setColor(color);
+    qobject_cast<Object3D*>(mPen->children().at(0)->children().at(0))->setColor(color.darker());
+}
+
 void RobotModel::updateSheet(QPainter *p)
 {
     if (m_penEnabled)
     {
         float pen_width = 0.3f * expf(-m_v*m_v*50); // max 0.3 cm
-        p->setPen(QPen(Qt::red, pen_width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p->setPen(QPen(m_penColor, pen_width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         if (m_v)
             p->drawLine(QLineF(m_oldx*100, m_oldy*100, m_x*100, m_y*100));
         else

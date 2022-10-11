@@ -3,7 +3,7 @@
 Scene::Scene()
 {
     setMinimumSize(300, 300);
-    setBackColor(Qt::white);//QColor(240, 240, 240));
+    setBackColor(Qt::white);
     setViewType(QPanel3D::object);
     setAutoUpdate(false);
 //    root()->showAxes(true);

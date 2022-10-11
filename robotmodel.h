@@ -20,8 +20,10 @@ public:
     virtual void left(float value) override;
     virtual void penUp() override;
     virtual void penDown() override;
+    virtual void arc(float radius, float degrees) override;
     virtual void clearScreen() override;
     void stop() override;
+    virtual void setColor(unsigned int rgb) override;
 
     virtual void setControl(float v, float w) override;
 
@@ -68,11 +70,13 @@ private:
     float m_x, m_y, m_phi;
     float m_oldx, m_oldy;
 
+    QColor m_penColor;
     bool m_penEnabled;
     float m_cmdTime;
 
     void reset();
     void updateFace();
+    void setPenColor(QColor color);
 };
 
 #endif // ROBOTMODEL_H

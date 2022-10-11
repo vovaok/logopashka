@@ -73,6 +73,8 @@ private:
     int opPriority(QString op);
     void createProcedures();
     Result infixOp(QString left, Token op, QString right);
+    Result infixOp(int left, Token op, int right);
+    Result infixOp(double left, Token op, double right);
 
     void raiseError(QString reason);
 

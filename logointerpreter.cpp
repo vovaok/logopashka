@@ -122,7 +122,7 @@ void LogoInterpreter::evalList()
         }
 
         Result result = eval(token);
-        if (!result.isVoid())
+        if (!result.isVoid() && !result.isError())
             m_stack.push(result);
     }
     while (!m_context->atEnd() && !m_errorState && !isInterruptionRequested());
@@ -324,20 +324,20 @@ void LogoInterpreter::createProcedures()
                 msleep(10);
         }
     };
-    proc["ВЛЕВО"] = [=](QString value)
-    {
-        if (m_turtle)
-        {
-            m_turtle->left(value.toFloat());
-            while (m_turtle->isBusy())
-                msleep(10);
-        }
-    };
     proc["ВПРАВО"] = [=](QString value)
     {
         if (m_turtle)
         {
             m_turtle->right(value.toFloat());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
+    };
+    proc["ВЛЕВО"] = [=](QString value)
+    {
+        if (m_turtle)
+        {
+            m_turtle->left(value.toFloat());
             while (m_turtle->isBusy())
                 msleep(10);
         }
@@ -363,6 +363,65 @@ void LogoInterpreter::createProcedures()
     };
     proc["ПО"] = proc["ПЕРООПУСТИТЬ"];
 
+    proc["ВЫБРАТЬЦВЕТ"] = [=](QString color)
+    {
+        if (m_turtle)
+        {
+            uint col = color.toUInt();
+            if (color.startsWith('[')) // if this is list
+            {
+                int oldStackSize = m_stack.size();
+                m_context = new ProgramContext(removeBrackets(color), m_context);
+                evalList();
+                ProgramContext *temp = m_context;
+                m_context = m_context->parent();
+                delete temp;
+                qDebug() << "COLOR STACK: " << m_stack;
+                if (m_stack.size() - oldStackSize != 3)
+                    raiseError("Список должен содержать ровно 3 элемента");
+                else
+                {
+                    int b = m_stack.pop().toUInt();
+                    int g = m_stack.pop().toUInt();
+                    int r = m_stack.pop().toUInt();
+                    col = b + g * 0x100 + r * 0x10000;
+                }
+            }
+            else
+            {
+                QMap<QString, uint> colors;
+                colors["ЧЕРНЫЙ"] = 0x000000;
+                colors["КРАСНЫЙ"] = 0xFF0000;
+                colors["ОРАНЖЕВЫЙ"] = 0xFF8000;
+                colors["ЖЕЛТЫЙ"] = 0xFFFF00;
+                colors["ЗЕЛЕНЫЙ"] = 0x00FF00;
+                colors["ГОЛУБОЙ"] = 0x00FFFF;
+                colors["СИНИЙ"] = 0x0040FF;
+                colors["ФИОЛЕТОВЫЙ"] = 0x8000FF;
+                colors["СИРЕНЕВЫЙ"] = 0xFF00FF;
+                colors["БЕЛЫЙ"] = 0xFFFFFF;
+                colors["СЕРЫЙ"] = 0x808080;
+                colors["РОЗОВЫЙ"] = 0xFFA0A0;
+                if (colors.contains(color))
+                    col = colors[color];
+            }
+
+            m_turtle->setColor(col);
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
+    };
+
+    proc["ДУГА"] = [=](QString radius, QString degrees)
+    {
+        if (m_turtle)
+        {
+            m_turtle->arc(radius.toDouble(), degrees.toDouble());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
+    };
+
     proc["ОЧИСТИТЬЭКРАН"] = [=]()
     {
         if (m_turtle)
@@ -380,6 +439,19 @@ void LogoInterpreter::createProcedures()
         m_context = new ProgramContext(removeBrackets(list), m_context);
 //        m_context->dumpVars();
         for (int i=0; i<cnt; i++)
+        {
+            evalList();
+            m_context->restart();
+        }
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+    };
+
+    proc["ПОКА"] = [=](QString cond, QString list)
+    {
+        m_context = new ProgramContext(removeBrackets(list), m_context);
+        while (cond.toInt())
         {
             evalList();
             m_context->restart();
@@ -546,41 +618,109 @@ void LogoInterpreter::createProcedures()
         m_context = oldContext;
         qDebug() << "done";
     };
+
+    proc["ЭЛЕМЕНТ"] = static_cast<std::function<QString(QString, QString)>>([=](QString index, QString list)
+    {
+        int idx = index.toUInt();
+        int oldStackSize = m_stack.size();
+        m_context = new ProgramContext(removeBrackets(list), m_context);
+        evalList();
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+        int list_size = m_stack.size() - oldStackSize;
+        if (list_size >= idx)
+            return m_stack.at(oldStackSize + idx);
+        m_stack.remove(oldStackSize, list_size);
+        return QString();
+    });
 }
 
 LogoInterpreter::Result LogoInterpreter::infixOp(QString left, LogoInterpreter::Token op, QString right)
 {
+    bool ok1, ok2;
+    int int_left = left.toInt(&ok1);
+    int int_right = right.toInt(&ok2);
+    if (ok1 && ok2)
+    {
+//        qDebug() << "integer:" << int_left << op << int_right;
+        return infixOp(int_left, op, int_right);
+    }
+
+    double double_left = left.toDouble(&ok1);
+    double double_right = right.toDouble(&ok2);
+    if (ok1 && ok2)
+        return infixOp(double_left, op, double_right);
+
+    return Result::Error;
+}
+
+LogoInterpreter::Result LogoInterpreter::infixOp(int left, LogoInterpreter::Token op, int right)
+{
     Result result;
 
-    static const Token True = Token(Token::Num, "1");
-    static const Token False = Token(Token::Num, "0");
+    static const Result True = Result("1");
+    static const Result False = Result("0");
 
     if (op == "+")
-        result = QString::number(left.toDouble() + right.toDouble());
+        result = QString::number(left + right);
     else if (op == "-")
-        result = QString::number(left.toDouble() - right.toDouble());
+        result = QString::number(left - right);
     else if (op == "*")
-        result = QString::number(left.toDouble() * right.toDouble());
+        result = QString::number(left * right);
     else if (op == "/")
-        result = QString::number(left.toDouble() / right.toDouble());
+        result = QString::number(left / right);
     else if (op == "%")
-        result = QString::number(left.toInt() % right.toInt());
+        result = QString::number(left % right);
     else if (op == "^")
-        result = QString::number(pow(left.toDouble(), right.toDouble()));
+        result = QString::number(lrint(pow(left, right)));
     else if (op == "=")
-        result = qFuzzyCompare(left.toDouble(), right.toDouble())? True: False;
+        result = (left == right)? True: False;
     else if (op == "<>" || op == "!=")
-        result = qFuzzyCompare(left.toDouble(), right.toDouble())? False: True;
+        result = (left != right)? False: True;
     else if (op == "<")
-        result = (left.toDouble() < right.toDouble())? True: False;
+        result = (left < right)? True: False;
     else if (op == ">")
-        result = (left.toDouble() > right.toDouble())? True: False;
+        result = (left > right)? True: False;
     else if (op == "<=")
-        result = (left.toDouble() <= right.toDouble())? True: False;
+        result = (left <= right)? True: False;
     else if (op == ">=")
-        result = (left.toDouble() >= right.toDouble())? True: False;
+        result = (left >= right)? True: False;
 
-    qDebug() << left << op << right << "=" << result;
+    return result;
+}
+
+LogoInterpreter::Result LogoInterpreter::infixOp(double left, LogoInterpreter::Token op, double right)
+{
+    Result result;
+
+    static const Result True = Result("1");
+    static const Result False = Result("0");
+
+    if (op == "+")
+        result = QString::number(left + right);
+    else if (op == "-")
+        result = QString::number(left - right);
+    else if (op == "*")
+        result = QString::number(left * right);
+    else if (op == "/")
+        result = QString::number(left / right);
+    else if (op == "%")
+        result = QString::number(fmod(left, right));
+    else if (op == "^")
+        result = QString::number(pow(left, right));
+    else if (op == "=")
+        result = qFuzzyCompare(left, right)? True: False;
+    else if (op == "<>" || op == "!=")
+        result = qFuzzyCompare(left, right)? False: True;
+    else if (op == "<")
+        result = (left < right)? True: False;
+    else if (op == ">")
+        result = (left > right)? True: False;
+    else if (op == "<=")
+        result = (left <= right)? True: False;
+    else if (op == ">=")
+        result = (left >= right)? True: False;
 
     return result;
 }

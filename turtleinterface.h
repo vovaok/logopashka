@@ -1,8 +1,6 @@
 #ifndef TURTLEINTERFACE_H
 #define TURTLEINTERFACE_H
 
-#include <stdint.h>
-
 class TurtleInterface
 {
 public:
@@ -20,8 +18,9 @@ public:
     virtual void stop() {}
     virtual void clearScreen() {}
 //    virtual void move(float x, float y) {(void)x; (void)y;}
-//    virtual void setColor(uint32_t rgb) {(void)rgb;}
+    virtual void setColor(unsigned int rgb) {(void)rgb;}
 //    virtual void sound(float freq, float duration) {(void)freq; (void)duration;}
+    virtual void arc(float radius, float degrees) {(void)radius;(void)degrees;}
 
     virtual void setControl(float v, float w) {(void)v; (void)w;}
 

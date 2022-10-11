@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("LogoPashka");
-//    showFullScreen();
+    showFullScreen();
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
