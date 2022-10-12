@@ -48,6 +48,8 @@ private:
     Primitive3D *mPen;
     DynamicTexture *mFace;
 
+    Primitive3D *mBalloon;
+
     const uint32_t m_eyeColor = 0xFF40A0FF;
 //    uint8_t eyes[16]; // two 8x8 LED matrices
     int blinking;

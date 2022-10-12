@@ -1,4 +1,5 @@
 #include "robotmodel.h"
+#include "panel3d.h"
 
 RobotModel::RobotModel(Object3D *parent) :
     Object3D(parent),
@@ -69,6 +70,40 @@ RobotModel::RobotModel(Object3D *parent) :
     face->setColor(Qt::white, Qt::white, Qt::white);
     mFace = new DynamicTexture(scene(), QSize(10, 18));
     face->setTexture(mFace);
+
+    mBalloon = new Primitive3D(mBase);
+    mBalloon->setRoundedRect(12, 6, 0.5);
+    mBalloon->setYOrient(180);
+//    mBalloon->setPlane(QVector3D(10, 0, 0), QVector3D(0, -5, 0));
+    QColor balcol(0, 255, 255, 144);
+    mBalloon->setColor(balcol);
+    mBalloon->setPosition(-3, 0, 12);
+
+    QImage img(256+24, 128+24, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::white);
+    for (int i=0; i<255; i++)
+    {
+        for (int j=0; j<128; j++)
+        {
+            uint32_t c = 0xFF000000 | i | (j<<16);
+            if ((i^j) & 8)
+                c = 0xFFFFFFFF;
+            img.setPixel(i+12, j+12, c);
+        }
+    }
+    mBalloon->setTexture(img);
+
+    Primitive3D *arrow = new Primitive3D(mBalloon);
+    arrow->setColor(balcol);
+    QPolygonF poly;
+    poly << QPointF(0, -2);
+    poly << QPointF(1, 0);
+    poly << QPointF(-1, 0);
+    arrow->setPolygon(poly);
+    arrow->setPosition(0, -3, 0);
+
+    mBalloon->setVisible(false);
+    qobject_cast<Object3D*>(mBalloon->children().at(0))->setVisible(false);
 
     updateFace();
 }
@@ -202,6 +237,16 @@ void RobotModel::integrate(float dt)
 
     setPose(m_x, m_y, m_phi);
     updateFace();
+
+    if (mBalloon->isVisible())
+    {
+        float mat[16];
+        mBase->findGlobalTransform(mat);
+        QMatrix4x4 T(mat);
+        QQuaternion q = QQuaternion::fromRotationMatrix(T.toGenericMatrix<3, 3>());
+        QQuaternion qc = QQuaternion::fromDirection(scene()->camera()->direction(), scene()->camera()->topDir());
+        mBalloon->setRotation(q * qc);
+    }
 }
 
 void RobotModel::setControl(float v, float w)
