@@ -23,6 +23,7 @@ win32: {
 }
 
 SOURCES += \
+    font8x8.c \
     logointerpreter.cpp \
     logoprocedure.cpp \
     main.cpp \

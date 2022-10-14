@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     logo = new LogoInterpreter;
     connect(logo, &LogoInterpreter::procedureFetched, this, &MainWindow::onLogoProcedureFetched);
+    connect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
 
 //    #ifdef Q_OS_WIN
 //    joy3D = new SpaceMouse(this);
@@ -102,12 +103,6 @@ MainWindow::MainWindow(QWidget *parent)
     console = new QLineEdit;
     connect(console, &QLineEdit::returnPressed, [=]()
     {
-        QMetaObject::Connection conn = connect(logo, &LogoInterpreter::error, [=](int start, int end, QString reason)
-        {
-            disconnect(conn);
-//            console->setSelection(start, end);
-            connlabel->setText("ОШИБКА:" + reason);
-        });
         logo->execute(console->text());
     });
 
@@ -415,8 +410,6 @@ void MainWindow::run()
 //#endif
 //    btnScene->setChecked(true);
 
-    connect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
-
     logo->execute(text, mDebug);
     connect(logo, &QThread::finished, this, &MainWindow::stop);
     qDebug() << "*** RUN ***";
@@ -668,7 +661,6 @@ void MainWindow::onLogoError(int start, int end, QString reason)
 
     editor->clearHighlights();
     editor->highlightText(start, end, Qt::red, QColor(255, 0, 0, 64));
-    console->setText("ОШИБКА: " + reason);
 }
 
 void MainWindow::listPrograms()

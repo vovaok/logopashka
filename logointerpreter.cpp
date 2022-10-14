@@ -41,6 +41,8 @@ bool LogoInterpreter::execute(QString program, bool debug)
         return false;
     }
 
+    if (m_turtle)
+        m_turtle->cls();
     m_context = new ProgramContext(program);
     m_errorState = false;
     m_debugMode = debug;
@@ -250,7 +252,7 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
     }
     else if (token.type() == Token::Wrd)
     {
-        raiseError("Неизвестная команда: " + token);
+        raiseError("Я не умею " + token);
         result = Result::Error;
     }
 
@@ -295,6 +297,13 @@ void LogoInterpreter::raiseError(QString reason)
 {
     m_errorState = true;
     emit error(m_context->lastPos(), m_context->curPos(), reason);
+
+    if (m_turtle)
+    {
+        QString s = "ОШИБКА:\n" + reason;
+        m_turtle->cls();
+        m_turtle->print(s.toLocal8Bit().constData());
+    }
 }
 
 QString LogoInterpreter::removeBrackets(QString list)
@@ -315,6 +324,7 @@ void LogoInterpreter::createProcedures()
                 msleep(10);
         }
     };
+    proc["ВПЕРЁД"] = proc["ВПЕРЕД"];
     proc["НАЗАД"] = [=](QString value)
     {
         if (m_turtle)
@@ -394,7 +404,9 @@ void LogoInterpreter::createProcedures()
                 colors["КРАСНЫЙ"] = 0xFF0000;
                 colors["ОРАНЖЕВЫЙ"] = 0xFF8000;
                 colors["ЖЕЛТЫЙ"] = 0xFFFF00;
+                colors["ЖЁЛТЫЙ"] = colors["ЖЕЛТЫЙ"];
                 colors["ЗЕЛЕНЫЙ"] = 0x00FF00;
+                colors["ЗЕЛЁНЫЙ"] = colors["ЗЕЛЕНЫЙ"];
                 colors["ГОЛУБОЙ"] = 0x00FFFF;
                 colors["СИНИЙ"] = 0x0040FF;
                 colors["ФИОЛЕТОВЫЙ"] = 0x8000FF;
@@ -402,8 +414,12 @@ void LogoInterpreter::createProcedures()
                 colors["БЕЛЫЙ"] = 0xFFFFFF;
                 colors["СЕРЫЙ"] = 0x808080;
                 colors["РОЗОВЫЙ"] = 0xFFA0A0;
+                colors["КОРИЧНЕВЫЙ"] = 0x804000;
+                colors["БЕЖЕВЫЙ"] = 0xFFDCBA;
                 if (colors.contains(color))
                     col = colors[color];
+                else
+                    raiseError("Я не знаю такой цвет: " + color);
             }
 
             m_turtle->setColor(col);
@@ -427,6 +443,28 @@ void LogoInterpreter::createProcedures()
         if (m_turtle)
         {
             m_turtle->clearScreen();
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
+    };
+
+    proc["ПЕЧАТЬ"] = [=](QString text)
+    {
+        if (text.startsWith("["))
+            text = removeBrackets(text);
+        if (m_turtle)
+        {
+            m_turtle->print(text.toLocal8Bit().constData());
+            while (m_turtle->isBusy())
+                msleep(10);
+        }
+    };
+
+    proc["УБРАТЬЭКРАН"] = [=]()
+    {
+        if (m_turtle)
+        {
+            m_turtle->cls();
             while (m_turtle->isBusy())
                 msleep(10);
         }
@@ -669,9 +707,20 @@ LogoInterpreter::Result LogoInterpreter::infixOp(int left, LogoInterpreter::Toke
     else if (op == "*")
         result = QString::number(left * right);
     else if (op == "/")
-        result = QString::number(left / right);
+    {
+        if (right == 0)
+            raiseError("Делить на 0 нельзя!");
+        else if (left % right)
+            result = QString::number((double)left / (double)right);
+        else
+            result = QString::number(left / right);
+    }
     else if (op == "%")
+    {
+        if (right == 0)
+            raiseError("Делить на 0 нельзя!");
         result = QString::number(left % right);
+    }
     else if (op == "^")
         result = QString::number(lrint(pow(left, right)));
     else if (op == "=")

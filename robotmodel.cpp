@@ -1,6 +1,8 @@
 #include "robotmodel.h"
 #include "panel3d.h"
 
+extern const uint8_t Font8x8_Table[];
+
 RobotModel::RobotModel(Object3D *parent) :
     Object3D(parent),
     m_v(0), m_w(0),
@@ -13,6 +15,7 @@ RobotModel::RobotModel(Object3D *parent) :
     m_penEnabled(false)
 {
     m_busy = false;
+    m_needScreenUpdate = false;
 
     blinking = 0;
     sleepy = 0;//7;
@@ -79,31 +82,36 @@ RobotModel::RobotModel(Object3D *parent) :
     mBalloon->setColor(balcol);
     mBalloon->setPosition(-3, 0, 12);
 
-    QImage img(256+24, 128+24, QImage::Format_ARGB32_Premultiplied);
-    img.fill(Qt::white);
-    for (int i=0; i<255; i++)
-    {
-        for (int j=0; j<128; j++)
-        {
-            uint32_t c = 0xFF000000 | i | (j<<16);
-            if ((i^j) & 8)
-                c = 0xFFFFFFFF;
-            img.setPixel(i+12, j+12, c);
-        }
-    }
-    mBalloon->setTexture(img);
+    mScreen = new DynamicTexture(scene(), QSize(128+12, 64+12)); // 6px borders
+    m_screenImg = QImage(128, 64, QImage::Format_ARGB32_Premultiplied);
+//    QImage img(256+24, 128+24, QImage::Format_ARGB32_Premultiplied);
+//    img.fill(Qt::white);
+//    for (int i=0; i<255; i++)
+//    {
+//        for (int j=0; j<128; j++)
+//        {
+//            uint32_t c = 0xFF000000 | i | (j<<16);
+//            if ((i^j) & 8)
+//                c = 0xFFFFFFFF;
+//            img.setPixel(i+12, j+12, c);
+//        }
+//    }
+    mBalloon->setTexture(mScreen);
 
-    Primitive3D *arrow = new Primitive3D(mBalloon);
-    arrow->setColor(balcol);
+    mBalloonArrow = new Primitive3D(mBalloon);
+    mBalloonArrow->setColor(balcol);
     QPolygonF poly;
     poly << QPointF(0, -2);
     poly << QPointF(1, 0);
     poly << QPointF(-1, 0);
-    arrow->setPolygon(poly);
-    arrow->setPosition(0, -3, 0);
+    mBalloonArrow->setPolygon(poly);
+    mBalloonArrow->setPosition(0, -3, 0);
 
+    cls();
+    m_balloonScale = 0;
+    m_balloonScaleRate = 0;
     mBalloon->setVisible(false);
-    qobject_cast<Object3D*>(mBalloon->children().at(0))->setVisible(false);
+    mBalloonArrow->setVisible(false);
 
     updateFace();
 }
@@ -191,6 +199,66 @@ void RobotModel::setColor(unsigned int rgb)
     setPenColor(QColor::fromRgb(rgb));
 }
 
+void RobotModel::putchar(char c)
+{
+    if (m_screenY >= 64/8)
+    {
+        --m_screenY;
+//        for (int y=0; y<64-8; y++)
+            memcpy(m_screenImg.scanLine(0), m_screenImg.scanLine(8), 128*(64-8)*4);
+        for (int y=64-8; y<64; y++)
+        {
+            for (int x=0; x<128; x++)
+                m_screenImg.setPixel(x, y, 0xFFFFFFFF);
+        }
+    }
+
+    if (c == '\n')
+    {
+        m_screenY++;
+        m_screenX = 0;
+    }
+    if ((uint8_t)c >= 0x20)
+    {
+        int x = m_screenX * 8;
+        int y = m_screenY * 8;
+        const uint8_t *b = Font8x8_Table + (((uint8_t)c - 0x20) << 3);
+        for (int i=0; i<8; i++, y++)
+        {
+            for (int j=0; j<8; j++)
+            {
+                if (b[i] & (1<<j))
+                {
+                    m_screenImg.setPixel(x + 7 - j, y, 0xFF000000);
+                }
+            }
+        }
+        m_screenX++;
+        if (m_screenX >= 128/8)
+        {
+            m_screenX = 0;
+            m_screenY++;
+        }
+    }
+}
+
+void RobotModel::print(const char *s)
+{
+    setBalloonVisible(true);
+    while (*s)
+        putchar(*s++);
+    putchar('\n');
+    m_needScreenUpdate = true;
+}
+
+void RobotModel::cls()
+{
+    m_screenX = m_screenY = 0;
+    m_screenImg.fill(Qt::white);
+    setBalloonVisible(false);
+    m_needScreenUpdate = true;
+}
+
 void RobotModel::integrate(float dt)
 {
     const float b = 0.05; // m
@@ -237,6 +305,7 @@ void RobotModel::integrate(float dt)
 
     setPose(m_x, m_y, m_phi);
     updateFace();
+    updateScreen();
 
     if (mBalloon->isVisible())
     {
@@ -280,6 +349,7 @@ void RobotModel::reset()
     m_cmdTime = 0;
     mWheelL->setZRot(0);
     mWheelR->setZRot(0);
+    cls();
     m_busy = false;
 }
 
@@ -400,6 +470,53 @@ void RobotModel::setPenColor(QColor color)
     mPen->setColor(color, Qt::white, Qt::black, 0.25, 10);
     qobject_cast<Object3D*>(mPen->children().at(0))->setColor(color);
     qobject_cast<Object3D*>(mPen->children().at(0)->children().at(0))->setColor(color.darker());
+}
+
+void RobotModel::setBalloonVisible(bool visible)
+{
+    if (mBalloonArrow->isVisible() == visible)
+        return;
+    m_balloonScaleRate = visible? 0.1f: -0.1f;
+    m_cmdTime = 1;
+    m_busy = true;
+    mBalloonArrow->setVisible(visible);
+//    mBalloon->setVisible(visible);
+}
+
+void RobotModel::updateScreen()
+{
+    if (m_balloonScale < 1.0f && m_balloonScaleRate > 0)
+    {
+        if (!m_balloonScale)
+            mBalloon->setVisible(true);
+        m_balloonScale += m_balloonScaleRate;
+        if (m_balloonScale >= 1.f)
+        {
+            m_balloonScale = 1.0f;
+            m_busy = false;
+        }
+        mBalloon->setYScale(m_balloonScale);
+    }
+    else if (m_balloonScale > 0 && m_balloonScaleRate < 0)
+    {
+        m_balloonScale += m_balloonScaleRate;
+        if (m_balloonScale <= 0)
+        {
+            m_balloonScale = 0;
+            mBalloon->setVisible(false);
+            m_busy = false;
+        }
+        mBalloon->setYScale(m_balloonScale);
+    }
+
+    if (m_needScreenUpdate)
+    {
+        m_needScreenUpdate = false;
+        QPainter *p = mScreen->paintBegin();
+        p->fillRect(0, 0, 128+12, 64+12, Qt::white);
+        p->drawImage(6, 6, m_screenImg);
+        mScreen->paintEnd();
+    }
 }
 
 void RobotModel::updateSheet(QPainter *p)

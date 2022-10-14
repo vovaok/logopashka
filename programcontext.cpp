@@ -76,7 +76,7 @@ ProgramContext::Token ProgramContext::nextToken()
                 return fetchListOrExpr(false);
             else if (body == "(")
                 return fetchListOrExpr(true);
-            return Token(static_cast<Token::Type>(i), body.toUpper().replace("Ё", "Е"));
+            return Token(static_cast<Token::Type>(i), body.toUpper());//.replace("Ё", "Е"));
         }
     }
     if (m_pos == m_text.length())

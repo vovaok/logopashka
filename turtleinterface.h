@@ -1,6 +1,8 @@
 #ifndef TURTLEINTERFACE_H
 #define TURTLEINTERFACE_H
 
+#include <QString>
+
 class TurtleInterface
 {
 public:
@@ -21,6 +23,8 @@ public:
     virtual void setColor(unsigned int rgb) {(void)rgb;}
 //    virtual void sound(float freq, float duration) {(void)freq; (void)duration;}
     virtual void arc(float radius, float degrees) {(void)radius;(void)degrees;}
+    virtual void print(const char *s) {(void)s;} // print on turtle's screen
+    virtual void cls() {} // clear turtle's screen
 
     virtual void setControl(float v, float w) {(void)v; (void)w;}
 

@@ -24,6 +24,9 @@ public:
     virtual void clearScreen() override;
     void stop() override;
     virtual void setColor(unsigned int rgb) override;
+    void putchar(char c);
+    virtual void print(const char *s) override;
+    virtual void cls() override;
 
     virtual void setControl(float v, float w) override;
 
@@ -47,8 +50,9 @@ private:
     Mesh3D *mActu;
     Primitive3D *mPen;
     DynamicTexture *mFace;
+    DynamicTexture *mScreen;
 
-    Primitive3D *mBalloon;
+    Primitive3D *mBalloon, *mBalloonArrow;
 
     const uint32_t m_eyeColor = 0xFF40A0FF;
 //    uint8_t eyes[16]; // two 8x8 LED matrices
@@ -76,9 +80,16 @@ private:
     bool m_penEnabled;
     float m_cmdTime;
 
+    QImage m_screenImg;
+    bool m_needScreenUpdate;
+    int m_screenX, m_screenY; // turtle's screen text coords
+    float m_balloonScale, m_balloonScaleRate;
+
     void reset();
     void updateFace();
     void setPenColor(QColor color);
+    void setBalloonVisible(bool visible);
+    void updateScreen();
 };
 
 #endif // ROBOTMODEL_H
