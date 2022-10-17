@@ -1,4 +1,4 @@
-QT       += core gui sensors
+QT       += core gui multimedia sensors
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -32,7 +32,8 @@ SOURCES += \
     codeeditor.cpp \
     programcontext.cpp \
     robotmodel.cpp \
-    scene.cpp
+    scene.cpp \
+    sound.cpp
 
 HEADERS += \
     logointerpreter.h \
@@ -43,6 +44,7 @@ HEADERS += \
     programcontext.h \
     robotmodel.h \
     scene.h \
+    sound.h \
     turtleinterface.h
 
 #win32: {

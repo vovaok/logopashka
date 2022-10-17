@@ -149,8 +149,8 @@ LogoInterpreter::Token LogoInterpreter::nextToken()
 
 LogoInterpreter::Result LogoInterpreter::eval(Token token)
 {
-    qDebug() << "Eval: " /*<< token.type()*/ << token;
     Result result;
+//    qDebug() << "Eval: " /*<< token.type()*/ << token;
 //    return result;
 
     if (token.isError())
@@ -300,9 +300,7 @@ void LogoInterpreter::raiseError(QString reason)
 
     if (m_turtle)
     {
-        QString s = "ОШИБКА:\n" + reason;
-        m_turtle->cls();
-        m_turtle->print(s.toLocal8Bit().constData());
+        m_turtle->showError(reason.toLocal8Bit().constData());
     }
 }
 
@@ -470,6 +468,27 @@ void LogoInterpreter::createProcedures()
         }
     };
 
+    proc["ЗВУК"] = [=](QString sFreq, QString sDur)
+    {
+        if (m_turtle)
+        {
+            bool ok;
+            float f = sFreq.toDouble(&ok);
+            if (ok && f >= 0 && f <= 20000)
+            {
+                float d = sDur.toDouble(&ok);
+                if (ok && d >= 0 && d <= 10)
+                {
+                    m_turtle->sound(f, d);
+                    while (m_turtle->isBusy())
+                        msleep(2);
+                    return;
+                }
+            }
+            raiseError("Параметры заданы неверно");
+        }
+    };
+
     proc["ПОВТОР"] = [=](QString count, QString list)
     {
         int cnt = count.toInt();
@@ -511,6 +530,16 @@ void LogoInterpreter::createProcedures()
             evalList(removeBrackets(list1));
         else
             evalList(removeBrackets(list2));
+    };
+
+    proc["ЖДАТЬ"] = [=](QString sTime)
+    {
+        bool ok;
+        double time_ms = sTime.toDouble(&ok) * 1000;
+        if (ok)
+            msleep(time_ms);
+        else
+            raiseError("Параметр задан неверно");
     };
 
     proc["СТОП"] = [=]()
@@ -657,6 +686,19 @@ void LogoInterpreter::createProcedures()
         qDebug() << "done";
     };
 
+    proc["ДЛИНАСПИСКА"] = static_cast<std::function<QString(QString)>>([=](QString list)
+    {
+        int oldStackSize = m_stack.size();
+        m_context = new ProgramContext(removeBrackets(list), m_context);
+        evalList();
+        ProgramContext *temp = m_context;
+        m_context = m_context->parent();
+        delete temp;
+        int list_size = m_stack.size() - oldStackSize;
+        m_stack.remove(oldStackSize, list_size);
+        return QString::number(list_size);
+    });
+
     proc["ЭЛЕМЕНТ"] = static_cast<std::function<QString(QString, QString)>>([=](QString index, QString list)
     {
         int idx = index.toUInt();
@@ -722,7 +764,7 @@ LogoInterpreter::Result LogoInterpreter::infixOp(int left, LogoInterpreter::Toke
         result = QString::number(left % right);
     }
     else if (op == "^")
-        result = QString::number(lrint(pow(left, right)));
+        result = QString::number(pow(left, right));
     else if (op == "=")
         result = (left == right)? True: False;
     else if (op == "<>" || op == "!=")

@@ -6,6 +6,7 @@
 #include "mesh3d.h"
 #include "primitive3d.h"
 #include "texture.h"
+#include "sound.h"
 
 class RobotModel : public Object3D, public TurtleInterface
 {
@@ -13,6 +14,7 @@ class RobotModel : public Object3D, public TurtleInterface
 
 public:
     RobotModel(Object3D *parent);
+    ~RobotModel();
 
     virtual void forward(float value) override;
     virtual void backward(float value) override;
@@ -27,6 +29,8 @@ public:
     void putchar(char c);
     virtual void print(const char *s) override;
     virtual void cls() override;
+    virtual void showError(const char *message) override;
+    virtual void sound(float freq, float dur);
 
     virtual void setControl(float v, float w) override;
 
@@ -36,6 +40,8 @@ public:
     void setPenEnabled(bool enable);
     bool isPenEnabled() const {return m_penEnabled;}
 //    float speed() const {return m_v;}
+
+    void setBalloonColor(QColor color);
 
 signals:
     void needClearScreen();
@@ -51,8 +57,9 @@ private:
     Primitive3D *mPen;
     DynamicTexture *mFace;
     DynamicTexture *mScreen;
-
     Primitive3D *mBalloon, *mBalloonArrow;
+
+    Sound *m_sound;
 
     const uint32_t m_eyeColor = 0xFF40A0FF;
 //    uint8_t eyes[16]; // two 8x8 LED matrices

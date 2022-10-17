@@ -25,6 +25,8 @@ public:
     virtual void arc(float radius, float degrees) {(void)radius;(void)degrees;}
     virtual void print(const char *s) {(void)s;} // print on turtle's screen
     virtual void cls() {} // clear turtle's screen
+    virtual void showError(const char *message) {(void)message;}
+    virtual void sound(float freq, float dur) {(void)freq; (void)dur;}
 
     virtual void setControl(float v, float w) {(void)v; (void)w;}
 

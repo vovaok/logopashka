@@ -78,8 +78,8 @@ RobotModel::RobotModel(Object3D *parent) :
     mBalloon->setRoundedRect(12, 6, 0.5);
     mBalloon->setYOrient(180);
 //    mBalloon->setPlane(QVector3D(10, 0, 0), QVector3D(0, -5, 0));
-    QColor balcol(0, 255, 255, 144);
-    mBalloon->setColor(balcol);
+//    QColor balcol(0, 255, 255, 144);
+//    mBalloon->setColor(balcol);
     mBalloon->setPosition(-3, 0, 12);
 
     mScreen = new DynamicTexture(scene(), QSize(128+12, 64+12)); // 6px borders
@@ -99,7 +99,7 @@ RobotModel::RobotModel(Object3D *parent) :
     mBalloon->setTexture(mScreen);
 
     mBalloonArrow = new Primitive3D(mBalloon);
-    mBalloonArrow->setColor(balcol);
+//    mBalloonArrow->setColor(balcol);
     QPolygonF poly;
     poly << QPointF(0, -2);
     poly << QPointF(1, 0);
@@ -108,12 +108,23 @@ RobotModel::RobotModel(Object3D *parent) :
     mBalloonArrow->setPosition(0, -3, 0);
 
     cls();
+    setBalloonColor(Qt::cyan);
     m_balloonScale = 0;
     m_balloonScaleRate = 0;
     mBalloon->setVisible(false);
     mBalloonArrow->setVisible(false);
 
     updateFace();
+
+    m_sound = new Sound(this);
+}
+
+RobotModel::~RobotModel()
+{
+    m_sound->requestInterruption();
+    m_sound->quit();
+    m_sound->wait(1000);
+    m_sound->terminate();
 }
 
 void RobotModel::forward(float value)
@@ -244,6 +255,7 @@ void RobotModel::putchar(char c)
 
 void RobotModel::print(const char *s)
 {
+    setBalloonColor(Qt::cyan);
     setBalloonVisible(true);
     while (*s)
         putchar(*s++);
@@ -257,6 +269,22 @@ void RobotModel::cls()
     m_screenImg.fill(Qt::white);
     setBalloonVisible(false);
     m_needScreenUpdate = true;
+}
+
+void RobotModel::showError(const char *message)
+{
+    QString s = "ОШИБКА:";
+    cls();
+    print(s.toLocal8Bit().constData());
+    print(message);
+    setBalloonColor(QColor(255, 32, 0));
+}
+
+void RobotModel::sound(float freq, float dur)
+{
+    m_sound->beep(freq, dur);
+    m_cmdTime = dur;
+    m_busy = true;
 }
 
 void RobotModel::integrate(float dt)
@@ -338,6 +366,13 @@ void RobotModel::setPenEnabled(bool enable)
     m_busy = true;
 }
 
+void RobotModel::setBalloonColor(QColor color)
+{
+    color.setAlpha(168);
+    mBalloon->setColor(color);
+    mBalloonArrow->setColor(color);
+}
+
 void RobotModel::reset()
 {
     m_v = m_w = 0;
@@ -350,6 +385,7 @@ void RobotModel::reset()
     mWheelL->setZRot(0);
     mWheelR->setZRot(0);
     cls();
+    setBalloonColor(Qt::cyan);
     m_busy = false;
 }
 

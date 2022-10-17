@@ -653,7 +653,7 @@ void MainWindow::onLogoProcedureFetched(int start, int end)
 
 void MainWindow::onLogoError(int start, int end, QString reason)
 {
-    disconnect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
+//    disconnect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
     if (mPrograms.contains(logo->programName()))
     {
         open(logo->programName());
