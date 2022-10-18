@@ -21,6 +21,7 @@ ProgramContext::ProgramContext(QString text, ProgramContext *parent) :
     m_textOffset = parent? parent->lastPos()+1: 0;
     if (parent)
     {
+        name = parent->name;
         for (QString &k: parent->m_localVars.keys())
             m_localVars[k] = parent->m_localVars[k];
     }

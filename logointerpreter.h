@@ -35,7 +35,7 @@ public:
         Type m_type;
     };
 
-    bool execute(QString program, bool debug = false);
+    bool execute(QString program, QString name, bool debug = false);
     void stop();
     Result result();
 
@@ -51,7 +51,7 @@ protected:
 
 signals:
     void procedureFetched(int start, int end);
-    void error(int start, int end, QString reason);
+    void error(QString programName, int start, int end, QString reason);
 
 private:
     TurtleInterface *m_turtle;

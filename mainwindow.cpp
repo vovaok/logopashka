@@ -100,17 +100,26 @@ MainWindow::MainWindow(QWidget *parent)
 //    editor->verticalScrollBar();
 //    editor->setVerticalScrollBar(bar);
 
-    console = new QLineEdit;
-    connect(console, &QLineEdit::returnPressed, [=]()
+    console = new ConsoleEdit;
+    connect(console, &ConsoleEdit::returnPressed, [=]()
     {
-        logo->execute(console->text());
+        if (console->isReadOnly())
+            return;
+        console->setReadOnly(true);
+        editor->setReadOnly(true);
+        logo->execute(console->text(), "#console");
     });
 
     connect(logo, &QThread::finished, [=]()
     {
         if (!logo->isErrorState())
+        {
             console->setText(logo->result());
+            editor->clearHighlights();
+        }
         console->selectAll();
+        console->setReadOnly(false);
+        editor->setReadOnly(false);
     });
 
     QPushButton *btnPlay = new QPushButton("RUN");
@@ -312,21 +321,11 @@ void MainWindow::onTimer()
 {
     float dt = 0.016f;
 
-//    if (context && !mProcessing && !mDebug)
-//    {
-////        mProcessing = true;
-//        step();
-//    }
-
 //#ifdef Q_OS_WIN
 //    joy3D->read();
-//#endif
-
-//#ifdef Q_OS_WIN
 //    if (joy3D->isPresent())
 //    {
 //        SpaceMouse::AxesValues axes = joy3D->getAxesValues();
-
 //    }
 //#endif
 
@@ -342,7 +341,6 @@ void MainWindow::onTimer()
     device->update();
 #endif
 
-//    if (joy->isActive())
     if (!isRunning())
     {
         float v = joy->y();
@@ -350,24 +348,11 @@ void MainWindow::onTimer()
 #if defined(ONB)
         device->setControl(v*3, w*3);
 #endif
-//        if (scene && scene->isVisible())
         if (turtle)
             turtle->setControl(v*3, w*3);
     }
 
     scene->integrate(dt);
-
-//    if (logo->isRunning())
-//    {
-//        QColor selColor(139, 237, 139);
-//        QColor lineColor(139, 227, 237, 192);
-//        editor->clearHighlights();
-//        editor->highlightText(logo->lastProcPos(), logo->curPos(), selColor, lineColor);
-//        QTextCursor cur = editor->textCursor();
-//        cur.setPosition(logo->lastProcPos());
-//        editor->setTextCursor(cur);
-//        editor->ensureCursorVisible();
-//    }
 
 #if defined(ONB)
     bool conn = device->isValid() && device->isPresent();
@@ -380,7 +365,7 @@ void MainWindow::onTimer()
 
     scene->update();
     if (scene->isVisible())
-        joy->update(); // FUCKING HACK
+        joy->update(); // THE HACK
 }
 
 void MainWindow::run()
@@ -396,6 +381,7 @@ void MainWindow::run()
     }
 
     save();
+
     editor->clearHighlights();
     editor->setReadOnly(true);
     for (QPushButton *btn: mProgramBtns)
@@ -410,189 +396,11 @@ void MainWindow::run()
 //#endif
 //    btnScene->setChecked(true);
 
-    logo->execute(text, mDebug);
+    logo->execute(text, mProgramName, mDebug);
     connect(logo, &QThread::finished, this, &MainWindow::stop);
-    qDebug() << "*** RUN ***";
+    qDebug() << "*** RUN" << mProgramName << "***";
 }
 
-//QString MainWindow::evalExpr(QString expr)
-//{
-//    QString result;
-//    ProgramContext *oldContext = context;
-//    context = new ProgramContext(expr, context);
-//    do
-//    {
-//        result = eval(context->nextToken(), true);
-//        if (result.isEmpty())
-//            break;
-//        mStack << result;
-//    } while (!context->atEnd());
-//    delete context;
-//    context = oldContext;
-//    return result;
-//}
-
-//QString MainWindow::eval(QString token, bool waitOperand, bool dontTestInfix)
-//{
-//    token = token.replace("Ё", "Е");
-
-////    qDebug() << "EARLY EVAL" << token << "WAITOP" << waitOperand << "DONT TEST" << dontTestInfix;
-
-//    if (proc.contains(token))
-//        dontTestInfix = true;
-
-//    QString infixOp = context->testInfixOp();
-//    if (!dontTestInfix && !infixOp.isEmpty() && !context->isInfixOp(token))
-//    {
-//        if (mStack.isEmpty())
-//            mStack.append(""); // empty operator ??
-//        QString lastOp;
-////        if (mStack.isEmpty())
-//            lastOp = mStack.last();
-////        QString lastOp = context->mLastOp;
-////        qDebug() << "infix" << infixOp << "lastOp" << lastOp;
-//        if (opPriority(infixOp) > opPriority(lastOp))
-//        {
-//            QString param = token;
-//            token = context->nextToken();
-////            context->mLastOp = token;
-//            QString value = eval(param, true, true);
-//            mStack.push(value);
-//            waitOperand = false;
-//        }
-//    }
-
-//    if (token == "-" && waitOperand)
-//        token = "~"; // unary minus
-
-//    qDebug() << "EVAL" << token << mStack;
-
-//    if (mPrograms.contains(token) && !proc.contains(token))
-//    {
-//        QStringList params;
-//        params << token;
-//        proc["ЗАГРУЗИТЬ"](params);
-//    }
-
-//    if (proc.contains(token))
-//    {
-//        mStack.push(token);
-////        context->mLastOp = token;
-//        QStringList params;
-//        int pcnt = proc[token].paramCount();
-//        for (int i=params.count(); i<pcnt; i++)
-//        {
-//            QString p = context->nextToken();
-//            if ((token == "ПОВТОР" || token == "ЕСЛИ" || token == "ЕСЛИИНАЧЕ") && i > 0)
-//            {
-//                if (p.startsWith("("))
-//                    p = p.mid(1);
-//                if (p.endsWith(")"))
-//                    p = p.left(p.size()-1);//chopped(1);
-//                params << p;
-//            }
-//            else
-//                params << eval(p, true);
-////            context->mLastOp = "";
-//        }
-////        QStringList params;
-////        for (int i=0; i<pcnt; i++)
-////            params << mStack.pop();
-//        qDebug() << ">>" << token << params;
-//        QString result = proc[token](params);
-//        qDebug() << "<<" << result;
-//        mStack.pop();
-//        return result;
-//    }
-//    if (token == "~")
-//    {
-//        mStack.push(token);
-////        context->mLastOp = "~"; // unary minus
-//        QString value = eval(context->nextToken(), true, true);
-//        mStack.pop();
-//        return QString::number(-value.toDouble());
-//    }
-//    else if (context->isInfixOp(token))
-//    {
-//        if (mStack.isEmpty())
-//        {
-//            qCritical("JOPPA");
-//            return "0";
-//        }
-////        context->mLastOp = token;
-//        QString param1 = mStack.pop();
-//        mStack.push(token);
-//        QString param2 = eval(context->nextToken(), true);
-//        while (opPriority(context->testInfixOp()) > opPriority(token))
-//        {
-//            mStack.push(param2);
-//            param2 = eval(context->nextToken());
-//        }
-
-////        qDebug() << param1 << token << param2;
-//        QString result;
-//        if (token == "+")
-//            result = QString::number(param1.toDouble() + param2.toDouble());
-//        else if (token == "-")
-//            result = QString::number(param1.toDouble() - param2.toDouble());
-//        else if (token == "*")
-//            result = QString::number(param1.toDouble() * param2.toDouble());
-//        else if (token == "/")
-//            result = QString::number(param1.toDouble() / param2.toDouble());
-//        else if (token == "^")
-//            result = QString::number(pow(param1.toDouble(), param2.toDouble()));
-//        else if (token == "=")
-//            result = qFuzzyCompare(param1.toDouble(), param2.toDouble())? "1": "0";
-//        else if (token == "<>")
-//            result = qFuzzyCompare(param1.toDouble(), param2.toDouble())? "0": "1";
-//        else if (token == "<")
-//            result = (param1.toDouble() < param2.toDouble())? "1": "0";
-//        else if (token == ">")
-//            result = (param1.toDouble() > param2.toDouble())? "1": "0";
-//        else if (token == "<=")
-//            result = (param1.toDouble() <= param2.toDouble())? "1": "0";
-//        else if (token == ">=")
-//            result = (param1.toDouble() >= param2.toDouble())? "1": "0";
-
-//        qDebug() << param1 << token << param2 << "=" << result;
-
-//        mStack.pop();
-
-//        while ((opPriority(context->testInfixOp()) <= opPriority(token)) && (opPriority(context->testInfixOp()) > opPriority(mStack.last())))
-//        {
-////            qDebug() << "PROVERKA:" << "next" << context->testInfixOp() << "cur" << token << "prev" << mStack.last();
-//            if (context->testInfixOp().isEmpty())
-//                break;
-//            mStack.push(result);
-//            result = eval(context->nextToken());
-//        }
-//        return result;
-//    }
-//    else if (token.startsWith("\""))
-//    {
-//        return token.mid(1);
-//    }
-//    else if (token.startsWith(":"))
-//    {
-//        QString varname = token.mid(1);
-//        QString value = context->var(varname);
-//        if (!value.isNull())
-//            return value;
-//        return var(varname);
-//    }
-//    else if (token.indexOf(QRegExp("^[\\d.,]+$")) >= 0)
-//    {
-//        return token.replace(",", ".");
-//    }
-//    else if (token.startsWith("(") && token.endsWith(")"))
-//    {
-//        QString expr = token.mid(1, token.size()-2);//.chopped(1);
-//        evalExpr(expr);
-//        return mStack.pop();
-//    }
-
-//    return token; // x3 40 delat, pust budet token
-//}
 
 void MainWindow::step()
 {
@@ -641,6 +449,18 @@ void MainWindow::stop()
 
 void MainWindow::onLogoProcedureFetched(int start, int end)
 {
+    QString pname = logo->programName();
+    if (pname == "#console")
+        return;
+
+    if (!editor->isVisible())
+        return;
+
+    if (mProgramName != pname && mPrograms.contains(pname))
+    {
+        open(pname);
+    }
+
     QColor selColor(139, 237, 139);
     QColor lineColor(139, 227, 237, 192);
     editor->clearHighlights();
@@ -651,16 +471,32 @@ void MainWindow::onLogoProcedureFetched(int start, int end)
     editor->ensureCursorVisible();
 }
 
-void MainWindow::onLogoError(int start, int end, QString reason)
+void MainWindow::onLogoError(QString programName, int start, int end, QString reason)
 {
-//    disconnect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
-    if (mPrograms.contains(logo->programName()))
+    if (mPrograms.contains(programName))
     {
-        open(logo->programName());
+        open(programName);
+        editor->show();
     }
 
-    editor->clearHighlights();
-    editor->highlightText(start, end, Qt::red, QColor(255, 0, 0, 64));
+    if (programName == "#console")
+    {
+        console->setSelection(start, end);
+    }
+    else
+    {
+        editor->clearHighlights();
+        editor->highlightText(start, end, Qt::red, QColor(255, 0, 0, 64));
+
+        QTimer::singleShot(100, [=]()
+        {
+            QTextCursor cur = editor->textCursor();
+            cur.setPosition(start);
+            editor->setTextCursor(cur);
+            editor->centerCursor();
+
+        });
+    }
 }
 
 void MainWindow::listPrograms()

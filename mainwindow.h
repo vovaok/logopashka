@@ -18,6 +18,7 @@
 //#include <QRotationSensor>
 
 #include "codeeditor.h"
+#include "consoleedit.h"
 #include "logointerpreter.h"
 
 QT_BEGIN_NAMESPACE
@@ -64,7 +65,7 @@ private:
 //    #endif
 
     CodeEditor *editor;
-    QLineEdit *console;
+    ConsoleEdit *console;
 
     //QRotationSensor *imu;
 
@@ -94,7 +95,7 @@ private slots:
     void stop();
 
     void onLogoProcedureFetched(int start, int end);
-    void onLogoError(int start, int end, QString reason);
+    void onLogoError(QString programName, int start, int end, QString reason);
 
     void listPrograms();
     void save();

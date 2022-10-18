@@ -23,6 +23,7 @@ win32: {
 }
 
 SOURCES += \
+    consoleedit.cpp \
     font8x8.c \
     logointerpreter.cpp \
     logoprocedure.cpp \
@@ -36,6 +37,7 @@ SOURCES += \
     sound.cpp
 
 HEADERS += \
+    consoleedit.h \
     logointerpreter.h \
     logoprocedure.h \
     mainwindow.h \

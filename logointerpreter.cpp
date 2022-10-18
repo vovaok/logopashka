@@ -33,7 +33,7 @@ void LogoInterpreter::setTurtle(TurtleInterface *turtle)
     m_turtle = turtle;
 }
 
-bool LogoInterpreter::execute(QString program, bool debug)
+bool LogoInterpreter::execute(QString program, QString name, bool debug)
 {
     if (isRunning())
     {
@@ -44,6 +44,7 @@ bool LogoInterpreter::execute(QString program, bool debug)
     if (m_turtle)
         m_turtle->cls();
     m_context = new ProgramContext(program);
+    m_context->name = name;
     m_errorState = false;
     m_debugMode = debug;
     m_lastPrecedence = 0;
@@ -246,9 +247,9 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
                 return Result::Void;
         }
 
-        qDebug() << ">>" << token << params;
+//        qDebug() << ">>" << token << params;
         result = proc[token](params);
-        qDebug() << "<<" << result;
+//        qDebug() << "<<" << result;
     }
     else if (token.type() == Token::Wrd)
     {
@@ -296,7 +297,7 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
 void LogoInterpreter::raiseError(QString reason)
 {
     m_errorState = true;
-    emit error(m_context->lastPos(), m_context->curPos(), reason);
+    emit error(m_context->name, m_context->lastPos(), m_context->curPos(), reason);
 
     if (m_turtle)
     {
@@ -399,6 +400,7 @@ void LogoInterpreter::createProcedures()
             {
                 QMap<QString, uint> colors;
                 colors["ЧЕРНЫЙ"] = 0x000000;
+                colors["ЧЁРНЫЙ"] = 0x000000;
                 colors["КРАСНЫЙ"] = 0xFF0000;
                 colors["ОРАНЖЕВЫЙ"] = 0xFF8000;
                 colors["ЖЕЛТЫЙ"] = 0xFFFF00;
@@ -586,6 +588,7 @@ void LogoInterpreter::createProcedures()
 
     proc["ЭТО"] = [=]()
     {
+        QString programName = m_context->name;
         QString procName = m_context->nextToken();
         QStringList paramNames;
         Token token = m_context->nextToken();
@@ -604,25 +607,17 @@ void LogoInterpreter::createProcedures()
                 return;
             }
             token = m_context->nextToken();
+            if (token == "ЭТО")
+            {
+                raiseError("Конца процедуры " + procName + " не было, а уже новая");
+                return;
+            }
         }
         int end = m_context->lastPos();
 
         QString text = m_context->text(offset, end);
 
-
-//        QString text = "";
-//        int offset = 0;
-//        while (!m_context->atEnd())
-//        {
-//            QString token = m_context->nextToken();
-//            if (!offset)
-//                offset = m_context->lastPos();
-//            if (token == "КОНЕЦ")
-//                break;
-//            text += token.toUpper() + " ";
-//        }
-
-        qDebug() << "name" << procName << "params" << paramNames << "text:";
+        qDebug() << "program" << m_context->name << "name" << procName << "params" << paramNames << "text:";
         qDebug() << text;
         int pcount = paramNames.count();
         proc[procName].setGeneric(pcount, [=](QStringList params)
@@ -632,7 +627,7 @@ void LogoInterpreter::createProcedures()
             ProgramContext *oldContext = m_context;
             ProgramContext *newContext = new ProgramContext(text, m_context);
             newContext->m_textOffset = offset;
-            newContext->name = procName;
+            newContext->name = programName;
             for (int i=0; i<pcount; i++)
             {
                 newContext->m_localVars[paramNames[i]] = params[i];
