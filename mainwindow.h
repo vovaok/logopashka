@@ -69,16 +69,18 @@ private:
 
     //QRotationSensor *imu;
 
-    QVBoxLayout *mProgramLayout;
-    QGroupBox *mProgramGroup;
-    QLabel *mSpacer;
+//    QVBoxLayout *mProgramLayout;
+//    QGroupBox *mProgramGroup;
+//    QLabel *mSpacer;
+
+    QListView *mProgramListView;
+    QStringListModel *mProgramListModel;
 
     Led *connLed;
     QLabel *connlabel;
 
     QStringList mPrograms;
     QString mProgramName;
-    QMap<QString, QPushButton*> mProgramBtns;
 
     JoystickWidget *joy;
 

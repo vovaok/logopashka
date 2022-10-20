@@ -229,6 +229,7 @@ QSplitter::handle:vertical
 
 QScrollBar:vertical
 {
+/*    font-size: $font_size;*/
 /*    border: 3px solid white;*/
     border-radius: .25em;
     background: rgba(255, 255, 255, 0.4);
@@ -236,9 +237,10 @@ QScrollBar:vertical
 }
 QScrollBar::handle:vertical
 {
+    font-size: $font_size;
     background: rgba($color2, 0.6);
     margin: .1em;
-    border-radius: .2em;
+    border-radius: .15em;
     min-height: 2em;
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical
@@ -252,4 +254,43 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical
 {
     background: none;
+}
+
+QListView
+{
+    border: 3px solid white;
+    border-radius: .5em;
+    padding: .5em;
+    padding-right: 0;
+    background-color: transparent;
+}
+
+QListView::item
+{
+    font-size: $font_size;
+    background-color: rgba($color2, 0.8);
+    border: 3px solid white;
+    border-radius: .5em;
+    height: 1em;
+    min-width: 4em;
+    margin: .1em 0;
+    margin-right: .5em;
+    padding: .5em;
+}
+
+QListView::item:selected
+{
+    background-color: rgba($color1, 1.0);
+    color: black;
+}
+
+QListView::item:hover
+{
+    background-color: rgba($color2, 0.9);
+}
+
+QListView::item:selected:hover
+{
+    background-color: rgba($color1, 1.0);
+    color: black;
 }

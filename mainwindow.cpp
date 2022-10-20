@@ -6,7 +6,6 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow),
       scene(nullptr),
       turtle(nullptr),
-      mSpacer(nullptr),
       mProcessing(false),
       mDebug(false)
 {
@@ -84,11 +83,29 @@ MainWindow::MainWindow(QWidget *parent)
     joy->resize(600, 600);
 
 
-    mProgramGroup = new QGroupBox();
-    mProgramGroup->setStyleSheet("QGroupBox {border: none; margin: 0; padding: 0;}");
-    mProgramLayout = new QVBoxLayout;
-    mProgramGroup->setLayout(mProgramLayout);
+    mProgramListView = new QListView();
+    mProgramListView->setMinimumWidth(width() / 6);
+    mProgramListModel = new QStringListModel();
+    mProgramListView->setModel(mProgramListModel);
+//    mProgramListView->setViewMode(QListView::IconMode);
+//    mProgramListView->setFlow(QListView::TopToBottom);
+    mProgramListView->setFocusPolicy(Qt::NoFocus);
 
+//    mProgramGroup = new QGroupBox();
+//    mProgramGroup->setStyleSheet("QGroupBox {border: none; margin: 0; padding: 0;}");
+//    QVBoxLayout *pl = new QVBoxLayout;
+//    mProgramGroup->setLayout(pl);
+
+//    mProgramArea = new QScrollArea();
+//    mProgramArea->setMinimumWidth(width() / 4);
+//    mProgramLayout = new QVBoxLayout;
+//    QWidget *programWidget = new QWidget;
+//    programWidget->setLayout(mProgramLayout);
+//    mProgramArea->setWidget(programWidget);
+//    pl->addWidget(mProgramArea);
+//    programWidget->show();
+
+//    mProgramGroup->setLayout(mProgramLayout);
 
     editor = new CodeEditor;
     editor->setObjectName("editor");
@@ -246,7 +263,8 @@ MainWindow::MainWindow(QWidget *parent)
     QHBoxLayout *lay = new QHBoxLayout;
     lay->setContentsMargins(16, 16, 16, 16);
     lay->setSpacing(16);
-    lay->addWidget(mProgramGroup);
+//    lay->addWidget(mProgramGroup);
+    lay->addWidget(mProgramListView);
 
     QVBoxLayout *mainlay = new QVBoxLayout;
     mainlay->addWidget(splitter);
@@ -273,6 +291,16 @@ MainWindow::MainWindow(QWidget *parent)
 //    {
 //        mProcessing = false;
 //    });
+
+    connect(mProgramListView, &QListView::clicked, [=](const QModelIndex &idx)
+    {
+        QString programName = idx.data().toString();
+        save();
+        open(programName);
+        editor->show();
+//            sceneBox->hide();
+        btnScene->setChecked(false);
+    });
 
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), SLOT(onTimer()));
@@ -384,8 +412,7 @@ void MainWindow::run()
 
     editor->clearHighlights();
     editor->setReadOnly(true);
-    for (QPushButton *btn: mProgramBtns)
-        btn->setEnabled(false);
+    mProgramListView->setEnabled(false);
     QString text = editor->toPlainText();
 //    if (!mProgramName.isEmpty() && mProgramName != "MAIN")
 //        text = mProgramName;
@@ -442,8 +469,7 @@ void MainWindow::stop()
 #endif
 
     editor->setReadOnly(false);
-    for (QPushButton *btn: mProgramBtns)
-        btn->setEnabled(true);
+    mProgramListView->setEnabled(true);
     qDebug() << "*** STOP ***";
 }
 
@@ -516,43 +542,23 @@ void MainWindow::listPrograms()
     filters << "*.txt";
     QFileInfoList files = dir.entryInfoList(filters, QDir::Files, QDir::Name);
 
-    if (!mSpacer)
-        mSpacer = new QLabel;
-
-    for (QPushButton *btn: mProgramBtns)
-    {
-        mProgramLayout->removeWidget(btn);
-        btn->deleteLater();
-    }
-    mProgramBtns.clear();
     mPrograms.clear();
 
     for (QFileInfo &file: files)
     {
-        QString programName = file.baseName().toUpper();
-        QPushButton *btn = new QPushButton(file.baseName());
-        btn->setCheckable(true);
-
-        btn->setAutoExclusive(true);
-        connect(btn, &QPushButton::clicked, [=]()
-        {
-            save();
-            open(programName);
-            editor->show();
-//            sceneBox->hide();
-            btnScene->setChecked(false);
-        });
-        mPrograms << programName.toUpper();
-        mProgramBtns[programName] = btn;
-        mProgramLayout->addWidget(btn);
+        QString programName = file.baseName();//.toUpper();
+        mPrograms << programName;
 
 //        QStringList params;
 //        params << programName;
 //        proc["ЗАГРУЗИТЬ"](params);
     }
-    if (mProgramBtns.contains(mProgramName))
-        mProgramBtns[mProgramName]->setChecked(true);
-    mProgramLayout->addWidget(mSpacer, 100);
+
+    mProgramListModel->setStringList(mPrograms);
+
+#warning TODO: REIMPLEMENT this
+//    if (mProgramBtns.contains(mProgramName))
+//        mProgramBtns[mProgramName]->setChecked(true);
 
     if (mProgramName.isEmpty())
         open("MAIN");
@@ -599,7 +605,7 @@ void MainWindow::open(QString name)
     mProgramName = name;
     QString text = load(name);
     editor->setPlainText(text);
-    mProgramBtns[name]->setChecked(true);
+    mProgramListView->setCurrentIndex(mProgramListModel->index(mPrograms.indexOf(name)));
 }
 
 QString MainWindow::load(QString name)
