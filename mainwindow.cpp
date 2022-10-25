@@ -11,7 +11,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("LogoPashka");
-    showFullScreen();
+    bool fullscreen = true;
 
     setCursor(QCursor(QPixmap::fromImage(QImage(":/arrow.png")), 1, 4));
 
@@ -22,8 +22,18 @@ MainWindow::MainWindow(QWidget *parent)
         font_size = screen->size().width() / screen->logicalDotsPerInch();
 //        qDebug() << screen->logicalDotsPerInch() << screen->physicalDotsPerInch();
 //        qDebug() << screen->physicalSize();
+        if (screen->geometry().width() < screen->geometry().height())
+            fullscreen = false;
     }
 //    qDebug() << font_size;
+
+    if (fullscreen)
+        showFullScreen();
+//    else
+//    {
+//        move(0, 0);
+//        resize(screen->geometry().width(), height());
+//    }
 
     QFile styleFile(":/style.css");
     styleFile.open(QIODevice::ReadOnly);
@@ -88,7 +98,8 @@ MainWindow::MainWindow(QWidget *parent)
     mProgramListModel = new QStringListModel();
     mProgramListView->setModel(mProgramListModel);
 //    mProgramListView->setViewMode(QListView::IconMode);
-//    mProgramListView->setFlow(QListView::TopToBottom);
+//    mProgramListView->setMovement(QListView::Static);
+//    mProgramListView->setItemAlignment(Qt::AlignHCenter);
     mProgramListView->setFocusPolicy(Qt::NoFocus);
 
 //    mProgramGroup = new QGroupBox();
@@ -118,6 +129,7 @@ MainWindow::MainWindow(QWidget *parent)
 //    editor->setVerticalScrollBar(bar);
 
     console = new ConsoleEdit;
+    console->setObjectName("console");
     connect(console, &ConsoleEdit::returnPressed, [=]()
     {
         if (console->isReadOnly())
@@ -300,6 +312,31 @@ MainWindow::MainWindow(QWidget *parent)
         editor->show();
 //            sceneBox->hide();
         btnScene->setChecked(false);
+    });
+
+    connect(mProgramListModel, &QStringListModel::dataChanged, [=](const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles)
+    {
+        int idx = topLeft.row();
+        if (idx >= 0 && idx < mPrograms.size())
+        {
+            bool success = true;
+            QString oldname = mPrograms.at(idx);
+            QString newname = topLeft.data().toString();
+            if (newname.isEmpty() || oldname == newname || mPrograms.contains(newname))
+                success = false;
+            else
+                success = QFile::rename(path(oldname), path(newname));
+
+            if (success)
+            {
+                mPrograms[idx] = newname;
+                if (mProgramName == oldname)
+                    mProgramName = newname;
+                listPrograms();
+            }
+            else
+                mProgramListModel->setData(topLeft, oldname);
+        }
     });
 
     QTimer *timer = new QTimer(this);
@@ -556,50 +593,61 @@ void MainWindow::listPrograms()
 
     mProgramListModel->setStringList(mPrograms);
 
-#warning TODO: REIMPLEMENT this
-//    if (mProgramBtns.contains(mProgramName))
-//        mProgramBtns[mProgramName]->setChecked(true);
-
     if (mProgramName.isEmpty())
-        open("MAIN");
+        open("main");
+    else
+        open(mProgramName);
+}
+
+QString MainWindow::path(QString name) const
+{
+    return "programs/" + name + ".txt";
 }
 
 void MainWindow::save()
 {
     QString text = editor->toPlainText();
-    QString firstLine = text.split("\n").first().trimmed();
-    QRegExp rx("^ЭТО\\s+(\\w+)", Qt::CaseInsensitive);
-    if (firstLine.indexOf(rx) != -1)
-    {
-        mProgramName = rx.cap(1);
-    }
 
     if (mProgramName.isEmpty())
-        mProgramName = "main";
-    QString filename = "programs/" + mProgramName + ".txt";
-    bool reload = false;
-    QFile file(filename);
-    if (!file.exists())
-        reload = true;
-    if (text.isEmpty())
     {
-        file.remove();
-        mProgramName = "";
-        reload = true;
+        qDebug() << "save WUT??";
+        return;
     }
-    else
-    {
+
+//    QString firstLine = text.split("\n").first().trimmed();
+//    QRegExp rx("^ЭТО\\s+(\\w+)", Qt::CaseInsensitive);
+//    if (firstLine.indexOf(rx) != -1)
+//    {
+//        mProgramName = rx.cap(1);
+//    }
+
+//    if (mProgramName.isEmpty())
+//        mProgramName = "main";
+
+    QString filename = path(mProgramName);
+//    bool reload = false;
+    QFile file(filename);
+//    if (!file.exists())
+//        reload = true;
+//    if (text.isEmpty())
+//    {
+//        file.remove();
+//        mProgramName = "";
+//        reload = true;
+//    }
+//    else
+//    {
         file.open(QIODevice::WriteOnly);
         file.write(text.toUtf8());
         file.close();
-    }
-    if (reload)
-        listPrograms();
+//    }
+//    if (reload)
+//        listPrograms();
 }
 
 void MainWindow::open(QString name)
 {
-    QString filename = "programs/" + name + ".txt";
+    QString filename = path(name);
     if (!QFile::exists(filename))
         return;
     mProgramName = name;
@@ -610,7 +658,7 @@ void MainWindow::open(QString name)
 
 QString MainWindow::load(QString name)
 {
-    QString filename = "programs/" + name + ".txt";
+    QString filename = path(name);
     QFile file(filename);
     if (!file.exists())
         return QString();

@@ -87,6 +87,7 @@ private:
     bool mProcessing;
     bool mDebug;
 
+    QString path(QString name) const;
 
 private slots:
     void onTimer();

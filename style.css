@@ -9,7 +9,7 @@ QLabel
 {
     color: black;
 }
-QPlainTextEdit, QTextEdit, QLineEdit
+QPlainTextEdit, QTextEdit, QLineEdit#console
 {
     font-family: Consolas;
     background-color: rgba(255, 255, 255, 0.8);
@@ -263,6 +263,7 @@ QListView
     padding: .5em;
     padding-right: 0;
     background-color: transparent;
+    min-width: 10em;
 }
 
 QListView::item
@@ -273,6 +274,7 @@ QListView::item
     border-radius: .5em;
     height: 1em;
     min-width: 4em;
+    max-width: 8em;
     margin: .1em 0;
     margin-right: .5em;
     padding: .5em;
@@ -293,4 +295,14 @@ QListView::item:selected:hover
 {
     background-color: rgba($color1, 1.0);
     color: black;
+}
+
+QListView QLineEdit
+{
+    margin: -2px 0;
+    padding: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid white;
+    border-radius: .5em;
+    selection-background-color: rgb($color2);
 }
