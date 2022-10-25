@@ -102,6 +102,86 @@ MainWindow::MainWindow(QWidget *parent)
 //    mProgramListView->setItemAlignment(Qt::AlignHCenter);
     mProgramListView->setFocusPolicy(Qt::NoFocus);
 
+    QPushButton *btnAddProgram = new QPushButton("+");
+    btnAddProgram->setObjectName("addButton");
+//    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect;
+//    shadow->setBlurRadius(font_size * 2);
+//    shadow->setOffset(0, 0);
+//    shadow->setColor(Qt::white);
+//    btnAddProgram->setGraphicsEffect(shadow);
+
+//    QPushButton *btnDelProgram = new QPushButton("X");
+//    btnDelProgram->setObjectName("delButton");
+
+    QLineEdit *editAddProgram = new QLineEdit;
+    editAddProgram->setPlaceholderText("Имя программы");
+    editAddProgram->hide();
+
+    QWidget *progw = new QWidget;
+    QVBoxLayout *play = new QVBoxLayout;
+    play->setContentsMargins(0, 0, 0, 0);
+    play->setSpacing(0);
+    progw->setLayout(play);
+    QHBoxLayout *phlay = new QHBoxLayout;
+    phlay->setAlignment(Qt::AlignLeft);
+    play->addLayout(phlay, 0);
+    phlay->addWidget(editAddProgram, 1);
+    phlay->addWidget(btnAddProgram, 0);
+//    phlay->addWidget(btnDelProgram, 0);
+    play->addWidget(mProgramListView, 1);
+
+    connect(btnAddProgram, &QPushButton::clicked, [=]()
+    {
+        if (!editAddProgram->isVisible())
+        {
+            editAddProgram->show();
+            editAddProgram->setFocus();
+            btnAddProgram->setText("OK");
+        }
+        else
+        {
+            QString name = editAddProgram->text();
+            bool success = false;
+            if (name.isEmpty())
+                success = true;
+            else if (mPrograms.contains(name))
+                success = false;
+            else
+            {
+                QFile file(path(name));
+                if (file.open(QIODevice::WriteOnly))
+                {
+                    success = true;
+                    save(); // current program
+                    mProgramName = name;
+                    listPrograms(); // and open new empty program
+                }
+                file.close();
+            }
+
+            if (success)
+            {
+                editAddProgram->hide();
+                editAddProgram->clear();
+                btnAddProgram->setText("+");
+            }
+        }
+    });
+
+    connect(editAddProgram, &QLineEdit::returnPressed, [=]()
+    {
+        btnAddProgram->click();
+    });
+
+    connect(editAddProgram, &QLineEdit::textChanged, [=]()
+    {
+        if (editAddProgram->isVisible())
+        {
+            QString name = editAddProgram->text();
+            btnAddProgram->setDisabled(name.isEmpty() || mPrograms.contains(name));
+        }
+    });
+
 //    mProgramGroup = new QGroupBox();
 //    mProgramGroup->setStyleSheet("QGroupBox {border: none; margin: 0; padding: 0;}");
 //    QVBoxLayout *pl = new QVBoxLayout;
@@ -272,11 +352,16 @@ MainWindow::MainWindow(QWidget *parent)
     controlLay->addWidget(enableBtn);
 #endif
 
+    QTabWidget *mLeftWidget = new QTabWidget;
+    mLeftWidget->addTab(progw, "Программы");
+    mLeftWidget->addTab(new QListView(), "Команды");
+
     QHBoxLayout *lay = new QHBoxLayout;
     lay->setContentsMargins(16, 16, 16, 16);
     lay->setSpacing(16);
 //    lay->addWidget(mProgramGroup);
-    lay->addWidget(mProgramListView);
+//    lay->addWidget(mProgramListView);
+    lay->addWidget(mLeftWidget);
 
     QVBoxLayout *mainlay = new QVBoxLayout;
     mainlay->addWidget(splitter);
@@ -307,9 +392,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(mProgramListView, &QListView::clicked, [=](const QModelIndex &idx)
     {
         QString programName = idx.data().toString();
-        save();
+        if (programName != mProgramName)
+            save();
         open(programName);
-        editor->show();
+//        editor->show();
 //            sceneBox->hide();
         btnScene->setChecked(false);
     });
@@ -593,6 +679,10 @@ void MainWindow::listPrograms()
 
     mProgramListModel->setStringList(mPrograms);
 
+//    mProgramListModel->insertRow(0);
+//    QModelIndex idx = mProgramListModel->index(0);
+//    mProgramListModel->setData(idx, "+");
+
     if (mProgramName.isEmpty())
         open("main");
     else
@@ -625,24 +715,24 @@ void MainWindow::save()
 //        mProgramName = "main";
 
     QString filename = path(mProgramName);
-//    bool reload = false;
+    bool reload = false;
     QFile file(filename);
-//    if (!file.exists())
-//        reload = true;
-//    if (text.isEmpty())
-//    {
-//        file.remove();
-//        mProgramName = "";
-//        reload = true;
-//    }
-//    else
-//    {
+    if (!file.exists())
+        reload = true;
+    if (text.isEmpty())
+    {
+        file.remove();
+        mProgramName = "";
+        reload = true;
+    }
+    else
+    {
         file.open(QIODevice::WriteOnly);
         file.write(text.toUtf8());
         file.close();
-//    }
-//    if (reload)
-//        listPrograms();
+    }
+    if (reload)
+        listPrograms();
 }
 
 void MainWindow::open(QString name)
@@ -654,6 +744,8 @@ void MainWindow::open(QString name)
     QString text = load(name);
     editor->setPlainText(text);
     mProgramListView->setCurrentIndex(mProgramListModel->index(mPrograms.indexOf(name)));
+    editor->show();
+    editor->setFocus();
 }
 
 QString MainWindow::load(QString name)

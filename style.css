@@ -16,6 +16,7 @@ QPlainTextEdit, QTextEdit, QLineEdit#console
     border: 3px solid white;
     border-radius: .5em;
     padding: .5em;
+    margin: 0;
     selection-background-color: rgb($color2);
 }
 #editor
@@ -75,14 +76,35 @@ QPushButton:disabled {
 {
  background-color: rgba(255, 0, 0, 0.8);
 }
-/*QLineEdit {
- background-color: white;
- border: 3px solid white;
- color: rgb(0, 31, 57);
- border-radius: .25em;
- height: 1em;
- max-width: 4em;
-}*/
+
+#addButton, #delButton
+{
+    min-width: 1em;
+    max-width: 1em;
+    min-height: 1em;
+    max-height: 1em;
+    height: 1em;
+    padding: .2em;
+    margin: .5em;
+/*    margin: .5em;
+    margin-bottom: 0;*/
+    margin-left: 0;
+}
+#delButton:hover
+{
+ background-color: rgba(255, 0, 0, 0.8);
+}
+
+QLineEdit {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 3px solid white;
+    border-radius: .5em;
+    padding: .2em;
+    /*margin: .5em;
+    margin-bottom: 0;
+    margin-right: 0;*/
+    selection-background-color: rgb($color2);
+}
 
 /*QSpinBox {
  background-color: white;
@@ -256,12 +278,50 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical
     background: none;
 }
 
-QListView
+QTabWidget::pane
 {
+    font-size: $font_size;
     border: 3px solid white;
     border-radius: .5em;
-    padding: .5em;
-    padding-right: 0;
+    background-color: transparent;
+    min-width: 10em;
+    padding-left: .5em;
+/*    padding-right: 0;*/
+}
+
+QTabWidget::tab-bar
+{
+    alignment: center;
+}
+
+QTabBar::tab
+{
+    font-size: $font_size;
+    padding: .1em .3em;
+    border: 3px solid white;
+    border-bottom: none;
+    border-top-left-radius: .5em;
+    border-top-right-radius: .5em;
+    background-color: rgba($color2, 0.8);
+}
+
+QTabBar::tab:selected
+{
+    background-color: rgba($color1, 1.0);
+}
+
+QTabBar::tab:!selected
+{
+    margin: .2em 0 0 0;
+}
+
+QListView
+{
+/*    border: 3px solid white;*/
+    border-radius: .5em;
+/*    padding: .5em;
+    padding-right: 0;*/
+    margin-right: .5em;
     background-color: transparent;
     min-width: 10em;
 }
@@ -274,7 +334,7 @@ QListView::item
     border-radius: .5em;
     height: 1em;
     min-width: 4em;
-    max-width: 8em;
+    max-width: 7.5em;
     margin: .1em 0;
     margin-right: .5em;
     padding: .5em;
@@ -303,6 +363,6 @@ QListView QLineEdit
     padding: 0;
     background-color: rgba(255, 255, 255, 0.8);
     border: 1px solid white;
-    border-radius: .5em;
+    border-radius: .25em;
     selection-background-color: rgb($color2);
 }
