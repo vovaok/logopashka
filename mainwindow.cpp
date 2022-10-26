@@ -45,6 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     setStyleSheet(css);
 
     logo = new LogoInterpreter;
+    connect(logo, &LogoInterpreter::finished, this, &MainWindow::stop);
     connect(logo, &LogoInterpreter::procedureFetched, this, &MainWindow::onLogoProcedureFetched);
     connect(logo, &LogoInterpreter::error, this, &MainWindow::onLogoError);
 
@@ -101,6 +102,8 @@ MainWindow::MainWindow(QWidget *parent)
 //    mProgramListView->setMovement(QListView::Static);
 //    mProgramListView->setItemAlignment(Qt::AlignHCenter);
     mProgramListView->setFocusPolicy(Qt::NoFocus);
+//    mProgramListView->setVerticalScrollMode(QListView::ScrollPerPixel);
+//    mProgramListView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     QPushButton *btnAddProgram = new QPushButton("+");
     btnAddProgram->setObjectName("addButton");
@@ -182,21 +185,19 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-//    mProgramGroup = new QGroupBox();
-//    mProgramGroup->setStyleSheet("QGroupBox {border: none; margin: 0; padding: 0;}");
-//    QVBoxLayout *pl = new QVBoxLayout;
-//    mProgramGroup->setLayout(pl);
 
-//    mProgramArea = new QScrollArea();
-//    mProgramArea->setMinimumWidth(width() / 4);
-//    mProgramLayout = new QVBoxLayout;
-//    QWidget *programWidget = new QWidget;
-//    programWidget->setLayout(mProgramLayout);
-//    mProgramArea->setWidget(programWidget);
-//    pl->addWidget(mProgramArea);
-//    programWidget->show();
+    mCommandListView = new QListView();
+    mCommandListView->setMinimumWidth(width() / 6);
+    mCommandListModel = new QStringListModel();
+    mCommandListView->setModel(mCommandListModel);
+//    mCommandListView->setViewMode(QListView::IconMode);
+//    mCommandListView->setMovement(QListView::Static);
+//    mCommandListView->setItemAlignment(Qt::AlignHCenter);
+    mCommandListView->setFocusPolicy(Qt::NoFocus);
+    mCommandListView->setEditTriggers(QListView::NoEditTriggers);
+//    mCommandListView->setVerticalScrollMode(QListView::ScrollPerPixel);
+//    mCommandListView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-//    mProgramGroup->setLayout(mProgramLayout);
 
     editor = new CodeEditor;
     editor->setObjectName("editor");
@@ -204,9 +205,6 @@ MainWindow::MainWindow(QWidget *parent)
     editor->viewport()->setCursor(QCursor(QPixmap::fromImage(QImage(":/ibeam.png"))));
     editor->setCursorWidth(3);
 
-//    QScrollBar *bar = new QScrollBar(Qt::Vertical);
-//    editor->verticalScrollBar();
-//    editor->setVerticalScrollBar(bar);
 
     console = new ConsoleEdit;
     console->setObjectName("console");
@@ -214,21 +212,59 @@ MainWindow::MainWindow(QWidget *parent)
     {
         if (console->isReadOnly())
             return;
+        save();
         console->setReadOnly(true);
         editor->setReadOnly(true);
         logo->execute(console->text(), "#console");
     });
 
-    connect(logo, &QThread::finished, [=]()
+    connect(mCommandListView, &QListView::clicked, [=](const QModelIndex &idx)
     {
-        if (!logo->isErrorState())
+        QString cmd = idx.data().toString();
+        int paramCount = logo->procInfo(cmd).paramCount();
+        QString text = cmd;
+        int pos = cmd.size() + 1;
+        for (int i=0; i<paramCount; i++)
+            text += " ?";
+//        console->setCursorPosition(console->text().size());
+//        console->insert(text);
+        console->setText(text);
+        console->setCursorPosition(pos);
+        if (paramCount)
+            console->setSelection(pos, 1);
+        console->setFocus();
+    });
+
+    connect(mCommandListView, &QListView::doubleClicked, [=](const QModelIndex &idx)
+    {
+        QString cmd = idx.data().toString();
+        const LogoProcedure &proc = logo->procInfo(cmd);
+        bool isNative = proc.isNative();
+        if (isNative)
         {
-            console->setText(logo->result());
-            editor->clearHighlights();
+            mProgramName = "";
+            QString text = "Встроенная команда: " + cmd + "\n";
+            QStringList aliases = proc.aliases();
+            if (!aliases.isEmpty())
+                text += "Синонимы: " + aliases.join(", ") + "\n";
+            editor->clear();
+            editor->insertPlainText(text);
+            editor->show();
         }
-        console->selectAll();
-        console->setReadOnly(false);
-        editor->setReadOnly(false);
+        else
+        {
+            QString programName = proc.programName();
+            if (!programName.isEmpty())
+            {
+                int offset = proc.textOffset();
+                open(programName);
+                QTextCursor cur = editor->textCursor();
+                cur.setPosition(offset);
+                editor->setTextCursor(cur);
+                editor->centerCursor();
+                editor->highlightCurrentLine();
+            }
+        }
     });
 
     QPushButton *btnPlay = new QPushButton("RUN");
@@ -354,7 +390,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     QTabWidget *mLeftWidget = new QTabWidget;
     mLeftWidget->addTab(progw, "Программы");
-    mLeftWidget->addTab(new QListView(), "Команды");
+    mLeftWidget->addTab(mCommandListView, "Команды");
+
+    connect(mLeftWidget, &QTabWidget::currentChanged, [=](int index)
+    {
+        if (mCommandListView->isVisible())
+        {
+            updateCommands();
+        }
+    });
 
     QHBoxLayout *lay = new QHBoxLayout;
     lay->setContentsMargins(16, 16, 16, 16);
@@ -376,6 +420,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->centralwidget->setLayout(lay);
 
     listPrograms();
+    updateCommands();
 
 #if defined(ONB)
     connect(device, &Robot::commandCompleted, [=]()
@@ -547,7 +592,7 @@ void MainWindow::run()
 //    btnScene->setChecked(true);
 
     logo->execute(text, mProgramName, mDebug);
-    connect(logo, &QThread::finished, this, &MainWindow::stop);
+
     qDebug() << "*** RUN" << mProgramName << "***";
 }
 
@@ -568,10 +613,13 @@ void MainWindow::step()
 
 void MainWindow::stop()
 {
-    disconnect(logo, &QThread::finished, this, &MainWindow::stop);
-    logo->stop();
-    logo->wait(1000);
-    logo->terminate(); // hard stop
+    //disconnect(logo, &QThread::finished, this, &MainWindow::stop);
+  //  if (logo->isRunning())
+    {
+        logo->stop();
+        logo->wait(1000);
+        logo->terminate(); // hard stop
+    }
     mProcessing = false;
 
     turtle->stop();
@@ -579,12 +627,17 @@ void MainWindow::stop()
     if (!logo->isErrorState())
     {
         setDebugMode(false);
+        console->setText(logo->result());
+        console->selectAll();
         editor->clearHighlights();
     }
     else
     {
         setDebugMode(true);
     }
+
+    console->setReadOnly(false);
+    editor->setReadOnly(false);
 
 #if defined(ONB)
     device->stop();
@@ -683,10 +736,13 @@ void MainWindow::listPrograms()
 //    QModelIndex idx = mProgramListModel->index(0);
 //    mProgramListModel->setData(idx, "+");
 
-    if (mProgramName.isEmpty())
-        open("main");
-    else
-        open(mProgramName);
+    open(mProgramName);
+
+//    for (QString name: mPrograms)
+//    {
+//        QString text = load(name);
+//        logo->extractProcedures(text, name);
+//    }
 }
 
 QString MainWindow::path(QString name) const
@@ -703,6 +759,9 @@ void MainWindow::save()
         qDebug() << "save WUT??";
         return;
     }
+
+    logo->extractProcedures(text, mProgramName);
+    mCommandListModel->setStringList(logo->procedures());
 
 //    QString firstLine = text.split("\n").first().trimmed();
 //    QRegExp rx("^ЭТО\\s+(\\w+)", Qt::CaseInsensitive);
@@ -758,6 +817,17 @@ QString MainWindow::load(QString name)
     QString text = QString::fromUtf8(file.readAll());
     file.close();
     return text;
+}
+
+void MainWindow::updateCommands()
+{
+    for (QString name: mPrograms)
+    {
+        QString text = load(name);
+        logo->extractProcedures(text, name);
+    }
+
+    mCommandListModel->setStringList(logo->procedures());
 }
 
 void MainWindow::setDebugMode(bool enabled)

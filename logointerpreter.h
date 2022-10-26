@@ -39,10 +39,14 @@ public:
     void stop();
     Result result();
 
+    void extractProcedures(QString programText, QString programName);
+
     void setDebugMode(bool enabled);
     void doDebugStep();
 
     QString programName();
+    QStringList procedures() const;
+    const LogoProcedure &procInfo(QString procname) {return proc[procname];}
 
     bool isErrorState() const {return m_errorState;}
 
@@ -65,6 +69,7 @@ private:
     Result eval(Token token);
 
     QMap<QString, LogoProcedure> proc;
+    QMap<QString, QString> m_aliases;
 
     QStack<QString> m_stack;
     ProgramContext *m_context;
@@ -72,6 +77,7 @@ private:
 
     int opPriority(QString op);
     void createProcedures();
+    bool createAlias(QString procName, QString alias);
     Result infixOp(QString left, Token op, QString right);
     Result infixOp(int left, Token op, int right);
     Result infixOp(double left, Token op, double right);

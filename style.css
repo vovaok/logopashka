@@ -86,8 +86,7 @@ QPushButton:disabled {
     height: 1em;
     padding: .2em;
     margin: .5em;
-/*    margin: .5em;
-    margin-bottom: 0;*/
+    margin-bottom: 0;
     margin-left: 0;
 }
 #delButton:hover
@@ -99,10 +98,9 @@ QLineEdit {
     background-color: rgba(255, 255, 255, 0.8);
     border: 3px solid white;
     border-radius: .5em;
-    padding: .2em;
-    /*margin: .5em;
+    padding: .1em;
     margin-bottom: 0;
-    margin-right: 0;*/
+    margin-top: .5em;
     selection-background-color: rgb($color2);
 }
 
@@ -284,9 +282,12 @@ QTabWidget::pane
     border: 3px solid white;
     border-radius: .5em;
     background-color: transparent;
-    min-width: 10em;
+/*    min-width: 10em;*/ /* this is doesn't work */
+}
+
+QTabWidget::pane > QWidget
+{
     padding-left: .5em;
-/*    padding-right: 0;*/
 }
 
 QTabWidget::tab-bar
@@ -319,9 +320,10 @@ QListView
 {
 /*    border: 3px solid white;*/
     border-radius: .5em;
-/*    padding: .5em;
-    padding-right: 0;*/
-    margin-right: .5em;
+    margin-top: .5em;
+
+/*    padding-left: .5em;*/
+
     background-color: transparent;
     min-width: 10em;
 }

@@ -26,6 +26,16 @@ private:
 
 public:
     LogoProcedure();
+    QString programName() const {return mProgramName;}
+    int textOffset() const {return mTextOffset;}
+    bool isNative() const {return mIsNative;}
+    bool isFunc() const {return mIsFunc;}
+    int paramCount() const {return mParamCount;}
+    QStringList aliases() const {return mAliases;}
+    QString description() const {return mDescription;}
+
+protected:
+    friend class LogoInterpreter;
     void operator =(Proc0 f) {mParamCount = 0; mIsFunc = false; mIsNative = true; proc0 = f;}
     void operator =(Proc1 f) {mParamCount = 1; mIsFunc = false; mIsNative = true; proc1 = f;}
     void operator =(Proc2 f) {mParamCount = 2; mIsFunc = false; mIsNative = true; proc2 = f;}
@@ -33,12 +43,14 @@ public:
     void operator =(Func0 f) {mParamCount = 0; mIsFunc = true; mIsNative = true; func0 = f;}
     void operator =(Func1 f) {mParamCount = 1; mIsFunc = true; mIsNative = true; func1 = f;}
     void operator =(Func2 f) {mParamCount = 2; mIsFunc = true; mIsNative = true; func2 = f;}
-    int paramCount() const {return mParamCount;}
+    void setGeneric(int paramCount, FuncGeneric f);
+
     QString operator()(QStringList params);
 
-protected:
-    friend class LogoInterpreter;
-    void setGeneric(int paramCount, FuncGeneric f);
+    QString mProgramName;
+    int mTextOffset;
+    QStringList mAliases;
+    QString mDescription;
 
 private:
     bool mIsFunc;

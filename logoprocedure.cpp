@@ -1,6 +1,9 @@
 #include "logoprocedure.h"
 
-LogoProcedure::LogoProcedure()
+LogoProcedure::LogoProcedure() :
+    mTextOffset(0),
+    mIsNative(false),
+    mParamCount(0)
 {
 
 }

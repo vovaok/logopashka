@@ -76,6 +76,9 @@ private:
     QListView *mProgramListView;
     QStringListModel *mProgramListModel;
 
+    QListView *mCommandListView;
+    QStringListModel *mCommandListModel;
+
     Led *connLed;
     QLabel *connlabel;
 
@@ -104,6 +107,8 @@ private slots:
     void save();
     void open(QString name);
     QString load(QString name);
+
+    void updateCommands();
 
     void setDebugMode(bool enabled);
 };
