@@ -7,5 +7,6 @@
         <file>model/actuator.wrl</file>
         <file>model/robot.wrl</file>
         <file>model/wheel.wrl</file>
+        <file>proc.txt</file>
     </qresource>
 </RCC>

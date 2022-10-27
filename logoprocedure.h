@@ -28,11 +28,11 @@ public:
     LogoProcedure();
     QString programName() const {return mProgramName;}
     int textOffset() const {return mTextOffset;}
+    int textLength() const {return mTextLength;}
     bool isNative() const {return mIsNative;}
     bool isFunc() const {return mIsFunc;}
     int paramCount() const {return mParamCount;}
     QStringList aliases() const {return mAliases;}
-    QString description() const {return mDescription;}
 
 protected:
     friend class LogoInterpreter;
@@ -49,8 +49,8 @@ protected:
 
     QString mProgramName;
     int mTextOffset;
+    int mTextLength;
     QStringList mAliases;
-    QString mDescription;
 
 private:
     bool mIsFunc;

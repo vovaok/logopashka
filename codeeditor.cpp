@@ -47,13 +47,14 @@ void CodeEditor::highlightText(int pos1, int pos2, QColor color, QColor lineColo
         cur.setPosition(pos1);
         selection.cursor = cur;
         selection.cursor.clearSelection();
+        selection.cursor.setPosition(pos2, QTextCursor::KeepAnchor);
         selection.format.setProperty(QTextFormat::FullWidthSelection, true);
         m_extraSelections.append(selection);
 
         selection.format.setBackground(color);
         selection.format.setTextOutline(QPen(Qt::black)); // bold
         selection.format.setProperty(QTextFormat::FullWidthSelection, false);
-        selection.cursor.setPosition(pos2, QTextCursor::KeepAnchor);
+//        selection.cursor.setPosition(pos2, QTextCursor::KeepAnchor);
         m_extraSelections.append(selection);
     }
 

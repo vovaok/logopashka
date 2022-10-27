@@ -513,7 +513,7 @@ void RobotModel::setBalloonVisible(bool visible)
     if (mBalloonArrow->isVisible() == visible)
         return;
     m_balloonScaleRate = visible? 0.1f: -0.1f;
-    m_cmdTime = 1;
+    m_cmdTime = (1.0f - m_balloonScale) / fabs(m_balloonScaleRate);
     m_busy = true;
     mBalloonArrow->setVisible(visible);
 //    mBalloon->setVisible(visible);

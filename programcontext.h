@@ -15,7 +15,7 @@ public:
     public:
         enum Type {Comment=0, Ops, Wrd, Var, Num, Sym, Empty, Error, Eof, Expr, List} m_type;
         Token() : m_type(Eof) {}
-        Token(Type type, QString text=QString()) : m_type(type), QString(text) {}
+        Token(Type type, QString text=QString()) : QString(text), m_type(type) {}
         Type type() const {return m_type;}
         bool isOp() const {return m_type == Ops;}
         bool isVar() const {return m_type == Var;}
@@ -35,6 +35,7 @@ public:
     ProgramContext *parent();
 
     void restart();
+    void quit();
 
     int lastPos() const;
     int curPos() const;

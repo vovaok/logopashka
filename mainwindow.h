@@ -90,6 +90,8 @@ private:
     bool mProcessing;
     bool mDebug;
 
+    QString m_nativeCommandsText;
+
     QString path(QString name) const;
 
 private slots:

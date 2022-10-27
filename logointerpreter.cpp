@@ -78,7 +78,7 @@ void LogoInterpreter::extractProcedures(QString programText, QString programName
     {
         if (m_context->nextToken() == "ЭТО")
         {
-            proc["ЭТО"](QStringList());
+            m_proc["ЭТО"](QStringList());
         }
     }
     delete m_context;
@@ -107,7 +107,7 @@ QString LogoInterpreter::programName()
 
 QStringList LogoInterpreter::procedures() const
 {
-    return proc.keys();
+    return m_proc.keys();
 }
 
 void LogoInterpreter::run()
@@ -125,6 +125,12 @@ void LogoInterpreter::run()
     }
 
     qDebug() << "STACK: " << m_stack;
+}
+
+void LogoInterpreter::waitTurtle()
+{
+    while (m_turtle && m_turtle->isBusy() && !isInterruptionRequested())
+        msleep(10);
 }
 
 void LogoInterpreter::evalList()
@@ -230,14 +236,14 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
         delete temp;
         m_lastPrecedence = last;
     }
-    else if (proc.contains(token) || m_aliases.contains(token))
+    else if (m_proc.contains(token) || m_aliases.contains(token))
     {
         float lastProcTokenPos = m_context->tokenPos();
-        if (!proc.contains(token))
+        if (!m_proc.contains(token))
             token = Token(Token::Wrd, m_aliases[token]);
 
         QStringList params;
-        int pcnt = proc[token].paramCount();
+        int pcnt = m_proc[token].paramCount();
         for (int i=params.count(); i<pcnt; i++)
         {
             int last = m_lastPrecedence;
@@ -249,7 +255,11 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
                 raiseError("Параметр " + QString::number(i+1) + (tk.isError()? " задан неверно": " не задан"));
                 return Result::Error;
             }
-            params << eval(tk);
+
+            if (token == "ПОКА") // The HACK!!
+                params << tk;
+            else
+                params << eval(tk);
 
             m_lastPrecedence = last;
         }
@@ -271,7 +281,7 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
         }
 
 //        qDebug() << ">>" << token << params;
-        result = proc[token](params);
+        result = m_proc[token](params);
 //        qDebug() << "<<" << result;
     }
     else if (token.type() == Token::Wrd)
@@ -333,69 +343,64 @@ QString LogoInterpreter::removeBrackets(QString list)
     QRegExp rx("^\\s*\\[(.*)\\]\\s*$");
     if (rx.indexIn(list) >= 0)
         return rx.cap(1);
+    return QString();
 }
 
 void LogoInterpreter::createProcedures()
 {
-    proc["ВПЕРЁД"] = [=](QString value)
+    m_proc["ВПЕРЁД"] = [this](QString value)
     {
         if (m_turtle)
         {
             m_turtle->forward(value.toFloat());
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
     createAlias("ВПЕРЁД", "ВПЕРЕД");
-    proc["НАЗАД"] = [=](QString value)
+    m_proc["НАЗАД"] = [this](QString value)
     {
         if (m_turtle)
         {
             m_turtle->backward(value.toFloat());
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
-    proc["ВПРАВО"] = [=](QString value)
+    m_proc["ВПРАВО"] = [this](QString value)
     {
         if (m_turtle)
         {
             m_turtle->right(value.toFloat());
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
-    proc["ВЛЕВО"] = [=](QString value)
+    m_proc["ВЛЕВО"] = [this](QString value)
     {
         if (m_turtle)
         {
             m_turtle->left(value.toFloat());
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
-    proc["ПЕРОПОДНЯТЬ"] = [=]()
+    m_proc["ПЕРОПОДНЯТЬ"] = [this]()
     {
         if (m_turtle)
         {
             m_turtle->penUp();
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
     createAlias("ПЕРОПОДНЯТЬ", "ПП");
-    proc["ПЕРООПУСТИТЬ"] = [=]()
+    m_proc["ПЕРООПУСТИТЬ"] = [this]()
     {
         if (m_turtle)
         {
             m_turtle->penDown();
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
     createAlias("ПЕРООПУСТИТЬ", "ПО");
 
-    proc["ВЫБРАТЬЦВЕТ"] = [=](QString color)
+    m_proc["ВЫБРАТЬЦВЕТ"] = [this](QString color)
     {
         if (m_turtle)
         {
@@ -446,54 +451,49 @@ void LogoInterpreter::createProcedures()
             }
 
             m_turtle->setColor(col);
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
 
-    proc["ДУГА"] = [=](QString radius, QString degrees)
+    m_proc["ДУГА"] = [this](QString radius, QString degrees)
     {
         if (m_turtle)
         {
             m_turtle->arc(radius.toDouble(), degrees.toDouble());
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
 
-    proc["ОЧИСТИТЬЭКРАН"] = [=]()
+    m_proc["ОЧИСТИТЬЭКРАН"] = [this]()
     {
         if (m_turtle)
         {
             m_turtle->clearScreen();
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
 
-    proc["ПЕЧАТЬ"] = [=](QString text)
+    m_proc["ПЕЧАТЬ"] = [this](QString text)
     {
         if (text.startsWith("["))
             text = removeBrackets(text);
         if (m_turtle)
         {
             m_turtle->print(text.toLocal8Bit().constData());
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
 
-    proc["УБРАТЬЭКРАН"] = [=]()
+    m_proc["УБРАТЬЭКРАН"] = [this]()
     {
         if (m_turtle)
         {
             m_turtle->cls();
-            while (m_turtle->isBusy())
-                msleep(10);
+            waitTurtle();
         }
     };
 
-    proc["ЗВУК"] = [=](QString sFreq, QString sDur)
+    m_proc["ЗВУК"] = [this](QString sFreq, QString sDur)
     {
         if (m_turtle)
         {
@@ -505,7 +505,7 @@ void LogoInterpreter::createProcedures()
                 if (ok && d >= 0 && d <= 10)
                 {
                     m_turtle->sound(f, d);
-                    while (m_turtle->isBusy())
+                    while (m_turtle->isBusy() && !isInterruptionRequested())
                         msleep(2);
                     return;
                 }
@@ -514,7 +514,7 @@ void LogoInterpreter::createProcedures()
         }
     };
 
-    proc["ПОВТОР"] = [=](QString count, QString list)
+    m_proc["ПОВТОР"] = [this](QString count, QString list)
     {
         int cnt = count.toInt();
 //        m_context->dumpVars();
@@ -524,32 +524,36 @@ void LogoInterpreter::createProcedures()
         {
             evalList();
             m_context->restart();
+            if (isInterruptionRequested())
+                break;
         }
         ProgramContext *temp = m_context;
         m_context = m_context->parent();
         delete temp;
     };
 
-    proc["ПОКА"] = [=](QString cond, QString list)
+    m_proc["ПОКА"] = [this](QString cond, QString list)
     {
         m_context = new ProgramContext(removeBrackets(list), m_context);
-        while (cond.toInt())
+        while (eval(Token(Token::Expr, cond)).toInt()) // The HACK!!
         {
             evalList();
             m_context->restart();
+            if (isInterruptionRequested())
+                break;
         }
         ProgramContext *temp = m_context;
         m_context = m_context->parent();
         delete temp;
     };
 
-    proc["ЕСЛИ"] = [=](QString cond, QString list)
+    m_proc["ЕСЛИ"] = [this](QString cond, QString list)
     {
         if (cond.toInt())
             evalList(removeBrackets(list));
     };
 
-    proc["ЕСЛИИНАЧЕ"] = [=](QString cond, QString list1, QString list2)
+    m_proc["ЕСЛИИНАЧЕ"] = [this](QString cond, QString list1, QString list2)
     {
         if (cond.toInt())
             evalList(removeBrackets(list1));
@@ -557,35 +561,37 @@ void LogoInterpreter::createProcedures()
             evalList(removeBrackets(list2));
     };
 
-    proc["ЖДАТЬ"] = [=](QString sTime)
+    m_proc["ЖДАТЬ"] = [this](QString sTime)
     {
         bool ok;
         double time_ms = sTime.toDouble(&ok) * 1000;
-        if (ok)
+        if (ok && time_ms >= 0)
             msleep(time_ms);
         else
             raiseError("Параметр задан неверно");
     };
 
-    proc["СТОП"] = [=]()
+    m_proc["СТОП"] = [this]()
     {
-        stop();
+//        stop();
+        m_context->quit();
     };
 
-    proc["ВЫХОД"] = static_cast<std::function<QString(QString)>>([=](QString result)
+    m_proc["ВЫХОД"] = std::function<QString(QString)>([this](QString result)
     {
-        ProgramContext *oldContext = m_context;
-        m_context = m_context->parent();
-        delete oldContext;
+        m_context->quit();
+//        ProgramContext *oldContext = m_context;
+//        m_context = m_context->parent();
+//        delete oldContext;
         return result;
     });
 
-    proc["ИСПОЛНИТЬ"] = [=](QString name, QString value)
+    m_proc["ИСПОЛНИТЬ"] = [this](QString name, QString value)
     {
         m_context->setVar(name, value);
     };
 
-    proc["ПРОИЗВОЛЬНО"] = static_cast<std::function<QString(QString)>>([=](QString max)
+    m_proc["ПРОИЗВОЛЬНО"] = std::function<QString(QString)>([](QString max)
     {
         int maxval = max.toInt();
         uint32_t rnd = QRandomGenerator::global()->generate();
@@ -593,23 +599,23 @@ void LogoInterpreter::createProcedures()
         return QString::number(value);
     });
 
-    proc["СУММА"] = static_cast<std::function<QString(QString, QString)>>([=](QString a, QString b)
+    m_proc["СУММА"] = std::function<QString(QString, QString)>([](QString a, QString b)
     {
         return QString::number(a.toDouble() + b.toDouble());
     });
 
-    proc["РАЗНОСТЬ"] = static_cast<std::function<QString(QString, QString)>>([=](QString a, QString b)
+    m_proc["РАЗНОСТЬ"] = std::function<QString(QString, QString)>([](QString a, QString b)
     {
         return QString::number(a.toDouble() - b.toDouble());
     });
 
-    proc["МИНУС"] = static_cast<std::function<QString(QString)>>([=](QString x)
+    m_proc["МИНУС"] = std::function<QString(QString)>([](QString x)
     {
         return QString::number(-x.toDouble());
     });
     createAlias("МИНУС", "-");
 
-    proc["ЭТО"] = [=]()
+    m_proc["ЭТО"] = [this]()
     {
         QString programName = m_context->name;
         int procOffset = m_context->curPos();
@@ -644,49 +650,65 @@ void LogoInterpreter::createProcedures()
         qDebug() << "program" << m_context->name << "name" << procName << "params" << paramNames << "text:";
 //        qDebug() << text;
         int pcount = paramNames.count();
-        proc[procName].mProgramName = programName;
-        proc[procName].mTextOffset = procOffset;
-        proc[procName].setGeneric(pcount, [=](QStringList params)
+
+        LogoProcedure &proc = m_proc[procName];
+
+        if (!proc.isNative() || !proc.textOffset())
         {
-            Result result;
-//            qDebug() << "STACK" << m_stack;
-            ProgramContext *oldContext = m_context;
-            ProgramContext *newContext = new ProgramContext(text, m_context);
-            newContext->m_textOffset = offset;
-            newContext->name = programName;
-            for (int i=0; i<pcount; i++)
+            proc.mProgramName = programName;
+            proc.mTextOffset = procOffset;
+            proc.mTextLength = end - procOffset;
+        }
+
+        if (!proc.isNative())
+        {
+            proc.setGeneric(pcount, [=](QStringList params)
             {
-                newContext->m_localVars[paramNames[i]] = params[i];
-            }
-            m_context = newContext;
+                Result result;
+    //            qDebug() << "STACK" << m_stack;
+                ProgramContext *oldContext = m_context;
+                ProgramContext *newContext = new ProgramContext(text, m_context);
+                newContext->m_textOffset = offset;
+                newContext->name = programName;
+                for (int i=0; i<pcount; i++)
+                {
+                    newContext->m_localVars[paramNames[i]] = params[i];
+                }
+                m_context = newContext;
 
-            evalList();
+                int oldStackSize = m_stack.size();
 
-            if (m_context != oldContext)
-            {
-                delete m_context;
-                m_context = oldContext;
-            }
+                evalList();
 
-//            if (m_stack.size() > 1) // => wait result => eval here
-//            {
-//                QString result;
-//                do
-//                {
-//                    result = eval(m_context->nextToken());
-//                } while (m_context == newContext && !m_context->atEnd());
-//                if (m_context != oldContext)
-//                {
-//                    delete m_context;
-//                    m_context = oldContext;
-//                }
-//                return result;
-//            }
-            return result;
-        });
+                if (m_stack.size() > oldStackSize)
+                    result = m_stack.pop();
+
+                if (m_context != oldContext)
+                {
+                    delete m_context;
+                    m_context = oldContext;
+                }
+
+    //            if (m_stack.size() > 1) // => wait result => eval here
+    //            {
+    //                QString result;
+    //                do
+    //                {
+    //                    result = eval(m_context->nextToken());
+    //                } while (m_context == newContext && !m_context->atEnd());
+    //                if (m_context != oldContext)
+    //                {
+    //                    delete m_context;
+    //                    m_context = oldContext;
+    //                }
+    //                return result;
+    //            }
+                return result;
+            });
+        }
     };
 
-    proc["ДЛИНАСПИСКА"] = static_cast<std::function<QString(QString)>>([=](QString list)
+    m_proc["ДЛИНАСПИСКА"] = std::function<QString(QString)>([this](QString list)
     {
         int oldStackSize = m_stack.size();
         m_context = new ProgramContext(removeBrackets(list), m_context);
@@ -699,7 +721,7 @@ void LogoInterpreter::createProcedures()
         return QString::number(list_size);
     });
 
-    proc["ЭЛЕМЕНТ"] = static_cast<std::function<QString(QString, QString)>>([=](QString index, QString list)
+    m_proc["ЭЛЕМЕНТ"] = std::function<QString(QString, QString)>([this](QString index, QString list)
     {
         int idx = index.toUInt();
         int oldStackSize = m_stack.size();
@@ -718,10 +740,10 @@ void LogoInterpreter::createProcedures()
 
 bool LogoInterpreter::createAlias(QString procName, QString alias)
 {
-    if (proc.contains(procName))
+    if (m_proc.contains(procName))
     {
         m_aliases[alias] = procName;
-        proc[procName].mAliases << alias;
+        m_proc[procName].mAliases << alias;
         return true;
     }
     return false;
@@ -779,7 +801,7 @@ LogoInterpreter::Result LogoInterpreter::infixOp(int left, LogoInterpreter::Toke
     else if (op == "=")
         result = (left == right)? True: False;
     else if (op == "<>" || op == "!=")
-        result = (left != right)? False: True;
+        result = (left != right)? True: False;
     else if (op == "<")
         result = (left < right)? True: False;
     else if (op == ">")

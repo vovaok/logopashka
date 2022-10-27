@@ -46,7 +46,7 @@ public:
 
     QString programName();
     QStringList procedures() const;
-    const LogoProcedure &procInfo(QString procname) {return proc[procname];}
+    const LogoProcedure &procInfo(QString procname) {return m_proc[procname];}
 
     bool isErrorState() const {return m_errorState;}
 
@@ -60,6 +60,8 @@ signals:
 private:
     TurtleInterface *m_turtle;
 
+    void waitTurtle();
+
     void evalList();
     void evalList(QString list);
 
@@ -68,7 +70,7 @@ private:
 
     Result eval(Token token);
 
-    QMap<QString, LogoProcedure> proc;
+    QMap<QString, LogoProcedure> m_proc;
     QMap<QString, QString> m_aliases;
 
     QStack<QString> m_stack;

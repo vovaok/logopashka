@@ -12,8 +12,8 @@ QString ProgramContext::regexps[7] =
 };
 
 ProgramContext::ProgramContext(QString text, ProgramContext *parent) :
-    m_parent(parent),
     m_textOffset(0),
+    m_parent(parent),
     m_pos(0), m_oldPos(0),
     m_tokenPos(0), m_tokenEndPos(0)
 {
@@ -167,6 +167,11 @@ ProgramContext *ProgramContext::parent() {return m_parent;}
 void ProgramContext::restart()
 {
     m_pos = 0;
+}
+
+void ProgramContext::quit()
+{
+    m_pos = m_text.length();
 }
 
 int ProgramContext::lastPos() const

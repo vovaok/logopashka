@@ -237,6 +237,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(mCommandListView, &QListView::doubleClicked, [=](const QModelIndex &idx)
     {
+//        save(); // make errors
         QString cmd = idx.data().toString();
         const LogoProcedure &proc = logo->procInfo(cmd);
         bool isNative = proc.isNative();
@@ -247,9 +248,20 @@ MainWindow::MainWindow(QWidget *parent)
             QStringList aliases = proc.aliases();
             if (!aliases.isEmpty())
                 text += "Синонимы: " + aliases.join(", ") + "\n";
+            if (proc.textOffset())
+            {
+                text += "\n";
+                QString desc = m_nativeCommandsText.mid(proc.textOffset(), proc.textLength());
+                desc = desc.replace(QRegExp("\n; ?"), "\n");
+                text += desc;
+            }
             editor->clear();
             editor->insertPlainText(text);
+            QTextCursor cur = editor->textCursor();
+            cur.setPosition(0);
+            editor->setTextCursor(cur);
             editor->show();
+//            editor->setReadOnly(true);
         }
         else
         {
@@ -262,7 +274,8 @@ MainWindow::MainWindow(QWidget *parent)
                 cur.setPosition(offset);
                 editor->setTextCursor(cur);
                 editor->centerCursor();
-                editor->highlightCurrentLine();
+                editor->highlightText(proc.textOffset(), proc.textOffset() + proc.textLength(), Qt::white, Qt::white);
+//                editor->highlightCurrentLine();
             }
         }
     });
@@ -470,6 +483,13 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    // read description of native commands:
+    QFile f(":/proc.txt");
+    f.open(QIODevice::ReadOnly);
+    m_nativeCommandsText = f.readAll();
+    f.close();
+    logo->extractProcedures(m_nativeCommandsText, "");
+
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), SLOT(onTimer()));
     timer->start(16);
@@ -613,13 +633,16 @@ void MainWindow::step()
 
 void MainWindow::stop()
 {
-    //disconnect(logo, &QThread::finished, this, &MainWindow::stop);
-  //  if (logo->isRunning())
+    disconnect(logo, &QThread::finished, this, &MainWindow::stop);
+    logo->stop();
+    logo->wait(1000);
+    if (logo->isRunning())
     {
-        logo->stop();
-        logo->wait(1000);
+        qDebug() << "EXTERMINATE!!";
         logo->terminate(); // hard stop
     }
+    connect(logo, &QThread::finished, this, &MainWindow::stop);
+
     mProcessing = false;
 
     turtle->stop();
@@ -762,6 +785,7 @@ void MainWindow::save()
 
     logo->extractProcedures(text, mProgramName);
     mCommandListModel->setStringList(logo->procedures());
+    mCommandListView->update();
 
 //    QString firstLine = text.split("\n").first().trimmed();
 //    QRegExp rx("^ЭТО\\s+(\\w+)", Qt::CaseInsensitive);

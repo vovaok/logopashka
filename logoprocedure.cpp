@@ -2,6 +2,7 @@
 
 LogoProcedure::LogoProcedure() :
     mTextOffset(0),
+    mTextLength(0),
     mIsNative(false),
     mParamCount(0)
 {
