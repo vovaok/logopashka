@@ -4,7 +4,7 @@ Scene::Scene()
 {
     setMinimumSize(300, 300);
     setBackColor(Qt::white);
-    setViewType(QPanel3D::object);
+    setViewType(QPanel3D::fly);
     setAutoUpdate(false);
 //    root()->showAxes(true);
 
@@ -30,6 +30,7 @@ Scene::Scene()
     m_followingCam->setTopDir(QVector3D(0, 0, 1));
     m_followingCam->setDistanceLimit(500);
     m_followingCam->setZoom(1);
+    m_followingCam->setFollowing(true);
 
 //    setCamera(mFollowingCam);
 
@@ -112,7 +113,7 @@ void Scene::integrate(float dt)
         m_plot->paintEnd();
     }
 
-    if (m_robot->isPenEnabled())
+    if (m_robot->penState())
     {
         int c = sheet_resolution_px / 2;
         int z = sheet_resolution_px;
@@ -137,15 +138,25 @@ void Scene::integrate(float dt)
         if (ppold.isNull())
             ppold = pp;
         ppold = (63*ppold + pp) / 64;
-        m_followingCam->setPosition(ppold);
-//        while (collisionCheck(mFollowingCam, 10))
-//        {
-//            ppold += (fp - ppold) * 0.5;
-//            mFollowingCam->setPosition(ppold);
-//        }
+//        m_followingCam->setPosition(ppold);
+////        while (collisionCheck(mFollowingCam, 10))
+////        {
+////            ppold += (fp - ppold) * 0.5;
+////            mFollowingCam->setPosition(ppold);
+////        }
         m_followingCam->setTarget(fp);
         m_followingCam->setTopDir(QVector3D(0, 0, 1));
     }
+}
+
+Scene::ViewType Scene::view()
+{
+    if (camera() == m_mainCam)
+        return ViewMain;
+    if (camera() == m_topCam)
+        return ViewTop;
+    if (camera() == m_followingCam)
+        return ViewFollow;
 }
 
 void Scene::reset()

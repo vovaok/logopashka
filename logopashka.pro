@@ -1,4 +1,4 @@
-QT       += core gui multimedia sensors
+QT       += core gui multimedia sensors gamepad
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 

@@ -361,7 +361,7 @@ MainWindow::MainWindow(QWidget *parent)
     btnPD = new QPushButton("ПО");
     btnPD->setObjectName("penDown");
     btnPD->setCheckable(true);
-    btnPD->setAutoExclusive(true);
+//    btnPD->setAutoExclusive(true);
     connect(btnPD, &QPushButton::clicked, [=]()
     {
         if (turtle)
@@ -371,8 +371,8 @@ MainWindow::MainWindow(QWidget *parent)
     btnPU->setObjectName("penUp");
     btnPU->setFixedWidth(100);
     btnPU->setCheckable(true);
-    btnPU->setAutoExclusive(true);
-    btnPU->setChecked(true);
+//    btnPU->setAutoExclusive(true);
+//    btnPU->setChecked(true);
     connect(btnPU, &QPushButton::clicked, [=]()
     {
         if (turtle)
@@ -493,6 +493,22 @@ MainWindow::MainWindow(QWidget *parent)
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), SLOT(onTimer()));
     timer->start(16);
+
+    QGamepadManager *gpm = QGamepadManager::instance();
+    connect(gpm, &QGamepadManager::connectedGamepadsChanged, [=]()
+    {
+        qDebug() << "Gamepads:" << gpm->connectedGamepads();
+//        if (gpm->connectedGamepads().isEmpty())
+//        {
+//            joy->show();
+//        }
+//        else
+//        {
+//            joy->hide();
+//        }
+    });
+
+    gamepad = new QGamepad(0, this);
 }
 
 MainWindow::~MainWindow()
@@ -556,6 +572,58 @@ void MainWindow::onTimer()
 #if defined(ONB)
     device->update();
 #endif
+
+    if (gamepad->isConnected())
+    {
+        joy->setPos(gamepad->axisLeftX(), -gamepad->axisLeftY());
+        if (!turtle->isBusy())
+        {
+            if (gamepad->buttonL1())
+                turtle->penDown();
+            else if (gamepad->buttonR1())
+                turtle->penUp();
+
+            if (gamepad->buttonA())
+                turtle->setColor(0x00FF00);
+            if (gamepad->buttonB())
+                turtle->setColor(0xFF0000);
+            if (gamepad->buttonX())
+                turtle->setColor(0x0000FF);
+            if (gamepad->buttonY())
+                turtle->setColor(0xFFC000);
+
+            if (gamepad->buttonStart())
+                turtle->clearScreen();
+        }
+
+        if (gamepad->buttonLeft())
+            scene->setView(Scene::ViewMain);
+        else if (gamepad->buttonUp())
+            scene->setView(Scene::ViewTop);
+        else if (gamepad->buttonRight())
+            scene->setView(Scene::ViewFollow);
+
+        QVector3D pos = scene->camera()->position();
+        QVector3D dir = scene->camera()->direction();
+        QVector3D top = scene->camera()->topDir();
+        QVector3D side = QVector3D::crossProduct(dir, top);
+        QVector3D dp;
+        if (scene->view() == Scene::ViewTop)
+            dp = side * gamepad->axisRightX() - top * gamepad->axisRightY();
+        else
+            dp = side * gamepad->axisRightX() - dir * gamepad->axisRightY();
+        scene->camera()->setPosition(pos + dp * 0.3);
+    }
+
+    if (!btnPD->isChecked() && turtle->penState())
+        btnPD->setChecked(true);
+    else if (btnPD->isChecked() && !turtle->penState())
+        btnPD->setChecked(false);
+
+    if (!btnPU->isChecked() && !turtle->penState())
+        btnPU->setChecked(true);
+    else if (btnPU->isChecked() && turtle->penState())
+        btnPU->setChecked(false);
 
     if (!isRunning())
     {

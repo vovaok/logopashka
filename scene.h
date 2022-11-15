@@ -34,6 +34,8 @@ public:
 
     RobotModel *turtle() {return m_robot;}
 
+    ViewType view();
+
 //signals:
 //    void commandCompleted();
 

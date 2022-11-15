@@ -380,12 +380,12 @@ void RobotModel::reset()
     m_wL = m_wR = 0;
     m_phiL = m_phiR = 0;
     m_x = m_y = m_phi = 0;
-    m_penEnabled = false;
-    m_cmdTime = 0;
+    setPenEnabled(false);
     mWheelL->setZRot(0);
     mWheelR->setZRot(0);
     cls();
     setBalloonColor(Qt::cyan);
+    m_cmdTime = 0;
     m_busy = false;
 }
 

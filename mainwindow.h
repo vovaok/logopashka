@@ -15,6 +15,8 @@
 #ifdef Q_OS_WIN
 //#include "spacemouse.h"
 #endif
+#include <QGamepad>
+#include <QGamepadManager>
 //#include <QRotationSensor>
 
 #include "codeeditor.h"
@@ -86,6 +88,7 @@ private:
     QString mProgramName;
 
     JoystickWidget *joy;
+    QGamepad *gamepad;
 
     bool mProcessing;
     bool mDebug;

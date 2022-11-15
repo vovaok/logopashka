@@ -38,7 +38,7 @@ public:
 
     void setPose(float x, float y, float phi);
     void setPenEnabled(bool enable);
-    bool isPenEnabled() const {return m_penEnabled;}
+    virtual bool penState() const override {return m_penEnabled;}
 //    float speed() const {return m_v;}
 
     void setBalloonColor(QColor color);

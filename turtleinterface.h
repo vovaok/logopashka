@@ -15,6 +15,7 @@ public:
     virtual void left(float value) = 0; // deg
     virtual void penUp() = 0;
     virtual void penDown() = 0;
+    virtual bool penState() const = 0;
 
     // optional procedures:
     virtual void stop() {}
