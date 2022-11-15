@@ -4,8 +4,9 @@ Scene::Scene()
 {
     setMinimumSize(300, 300);
     setBackColor(Qt::white);
-    setViewType(QPanel3D::fly);
+    setViewType(QPanel3D::ViewFly);
     setAutoUpdate(false);
+    setMouseSensitivity(0.3);
 //    root()->showAxes(true);
 
     m_mainCam = new Camera3D(this);
@@ -23,9 +24,10 @@ Scene::Scene()
     m_topCam->setTopDir(QVector3D(1, 0, 0));
     m_topCam->setDistanceLimit(500);
     m_topCam->setZoom(1);
+    m_topCam->lockDirection();
 
     m_followingCam = new Camera3D(this);
-    m_followingCam->setPosition(QVector3D(-50, 50, 30));
+    m_followingCam->setPosition(QVector3D(60, 20, 20));
     m_followingCam->setTarget(QVector3D(0, 0, 5));
     m_followingCam->setTopDir(QVector3D(0, 0, 1));
     m_followingCam->setDistanceLimit(500);

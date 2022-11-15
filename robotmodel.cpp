@@ -80,7 +80,9 @@ RobotModel::RobotModel(Object3D *parent) :
 //    mBalloon->setPlane(QVector3D(10, 0, 0), QVector3D(0, -5, 0));
 //    QColor balcol(0, 255, 255, 144);
 //    mBalloon->setColor(balcol);
-    mBalloon->setPosition(-3, 0, 12);
+    mBalloon->setCenter(0, 5, 0);
+    mBalloon->setPosition(-2, 0, 5);
+    mBalloon->setDepthTestDisabled(true);
 
     mScreen = new DynamicTexture(scene(), QSize(128+12, 64+12)); // 6px borders
     m_screenImg = QImage(128, 64, QImage::Format_ARGB32_Premultiplied);
