@@ -62,6 +62,9 @@ private:
     QPushButton *btnScene;
     QPushButton *btnPU, *btnPD;
 
+    QPushButton *m_btnRun, *m_btnStop, *m_btnSave, *m_btnClose;
+    QPushButton *m_btnCamMain, *m_btnCamTop, *m_btnCamFollow, *m_btnCamChase;
+
 //    #ifdef Q_OS_WIN
 //    SpaceMouse *joy3D;
 //    #endif
@@ -116,5 +119,6 @@ private slots:
     void updateCommands();
 
     void setDebugMode(bool enabled);
+    void showScene();
 };
 #endif // MAINWINDOW_H

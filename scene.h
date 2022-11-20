@@ -13,14 +13,18 @@ public:
     {
         ViewMain,
         ViewTop,
-        ViewFollow
+        ViewFollow,
+        ViewChase
     } ViewType;
 
 private:
-    Camera3D *m_mainCam, *m_topCam, *m_followingCam;
+    Camera3D *m_mainCam, *m_topCam, *m_followingCam, *m_chasingCam;
     DynamicTexture *m_plot;
     Primitive3D *m_floor;
     RobotModel *m_robot;
+
+    QVector3D m_chaseCamPos;
+    float m_chasingCamDistance;
 
     const int sheet_resolution_px = 4000;
     int m_clear = 15;

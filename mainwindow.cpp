@@ -75,9 +75,6 @@ MainWindow::MainWindow(QWidget *parent)
     connlabel = new QLabel("disconnected");
     ui->statusbar->addWidget(connlabel);
 
-    QPushButton *stopBtn = new QPushButton("STOP");
-    connect(stopBtn, &QPushButton::clicked, this, &MainWindow::stop);
-
 #if defined(ONB)
     enableBtn = new QPushButton("Enable");
     enableBtn->setCheckable(true);
@@ -89,9 +86,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     joy = new JoystickWidget;
     joy->setColor(QColor(127, 185, 187));
+    joy->setMinimumSize(font_size * 20, font_size * 20);
 //    joy->setRadius(0.1, 0.23);
-    joy->setMinimumSize(300, 300);
-    joy->resize(600, 600);
+//    joy->setMinimumSize(300, 300);
+//    joy->resize(600, 600);
 
 
     mProgramListView = new QListView();
@@ -215,6 +213,9 @@ MainWindow::MainWindow(QWidget *parent)
         save();
         console->setReadOnly(true);
         editor->setReadOnly(true);
+        showScene();
+        mProgramListView->setEnabled(false);
+//        m_btnRun->setEnabled(false);
         logo->execute(console->text(), "#console");
     });
 
@@ -280,40 +281,44 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    QPushButton *btnPlay = new QPushButton("RUN");
-    btnPlay->setShortcut(QKeySequence("Ctrl+R"));
-    connect(btnPlay, &QPushButton::clicked, this, &MainWindow::run);
+    m_btnRun = new QPushButton("ПУСК");
+    m_btnRun->setShortcut(QKeySequence("Ctrl+R"));
+    connect(m_btnRun, &QPushButton::clicked, this, &MainWindow::run);
 
-    QPushButton *btnSave = new QPushButton("Save");
-    btnSave->setStyleSheet("min-width: 4em;");
-    btnSave->setShortcut(QKeySequence("Ctrl+S"));
-    connect(btnSave, &QPushButton::clicked, this, &MainWindow::save);
+    m_btnStop = new QPushButton("СТОП");
+    connect(m_btnStop, &QPushButton::clicked, this, &MainWindow::stop);
 
-    QPushButton *btnClose = new QPushButton("X");//"×");
-    btnClose->setObjectName("closeButton");
-    connect(btnClose, &QPushButton::clicked, this, &MainWindow::close);
+    m_btnSave = new QPushButton("Сохранить");
+    m_btnSave->setStyleSheet("min-width: 4em;");
+    m_btnSave->setShortcut(QKeySequence("Ctrl+S"));
+    connect(m_btnSave, &QPushButton::clicked, this, &MainWindow::save);
+
+    m_btnClose = new QPushButton("X");//"×");
+    m_btnClose->setObjectName("closeButton");
+    connect(m_btnClose, &QPushButton::clicked, this, &MainWindow::close);
 
 
     scene = new Scene();
     turtle = scene->turtle();
     logo->setTurtle(turtle);
 
-    QPushButton *btnCamMain = new QPushButton("fly");
-    btnCamMain->setStyleSheet("min-width: 100px;");
-    btnCamMain->setCheckable(true);
-    btnCamMain->setAutoExclusive(true);
-    btnCamMain->setChecked(true);
-    connect(btnCamMain, &QPushButton::clicked, [=](){scene->setView(Scene::ViewMain);});
-    QPushButton *btnCamTop = new QPushButton("top");
-    btnCamTop->setStyleSheet("min-width: 100px;");
-    btnCamTop->setCheckable(true);
-    btnCamTop->setAutoExclusive(true);
-    connect(btnCamTop, &QPushButton::clicked, [=](){scene->setView(Scene::ViewTop);});
-    QPushButton *btnCamFollow = new QPushButton("follow");
-    btnCamFollow->setStyleSheet("min-width: 100px;");
-    btnCamFollow->setCheckable(true);
-    btnCamFollow->setAutoExclusive(true);
-    connect(btnCamFollow, &QPushButton::clicked, [=](){scene->setView(Scene::ViewFollow);});
+    m_btnCamMain = new QPushButton("Вид сбоку");
+    m_btnCamMain->setCheckable(true);
+    m_btnCamMain->setAutoExclusive(true);
+    m_btnCamMain->setChecked(true);
+    connect(m_btnCamMain, &QPushButton::clicked, [=](){scene->setView(Scene::ViewMain);});
+    m_btnCamTop = new QPushButton("Вид сверху");
+    m_btnCamTop->setCheckable(true);
+    m_btnCamTop->setAutoExclusive(true);
+    connect(m_btnCamTop, &QPushButton::clicked, [=](){scene->setView(Scene::ViewTop);});
+    m_btnCamFollow = new QPushButton("Наблюдать");
+    m_btnCamFollow->setCheckable(true);
+    m_btnCamFollow->setAutoExclusive(true);
+    connect(m_btnCamFollow, &QPushButton::clicked, [=](){scene->setView(Scene::ViewFollow);});
+    m_btnCamChase = new QPushButton("Следовать");
+    m_btnCamChase->setCheckable(true);
+    m_btnCamChase->setAutoExclusive(true);
+    connect(m_btnCamChase, &QPushButton::clicked, [=](){scene->setView(Scene::ViewChase);});
 
     sceneBox = new QGroupBox;
     sceneBox->setStyleSheet("QGroupBox {background-color: white; margin: 0;}");
@@ -324,9 +329,10 @@ MainWindow::MainWindow(QWidget *parent)
     sceneboxlay->addLayout(scenebtnlay);
     sceneboxlay->addWidget(scene);
 
-    scenebtnlay->addWidget(btnCamMain);
-    scenebtnlay->addWidget(btnCamTop);
-    scenebtnlay->addWidget(btnCamFollow);
+    scenebtnlay->addWidget(m_btnCamMain);
+    scenebtnlay->addWidget(m_btnCamTop);
+    scenebtnlay->addWidget(m_btnCamFollow);
+    scenebtnlay->addWidget(m_btnCamChase);
 
 //    stack = new QStackedWidget;
 //    stack->addWidget(editor);
@@ -344,16 +350,12 @@ MainWindow::MainWindow(QWidget *parent)
     splitter->addWidget(editor);
     splitter->addWidget(sceneBox);
 
-    btnScene = new QPushButton("Model");
+    btnScene = new QPushButton("3D модель");
     btnScene->setCheckable(true);
     connect(btnScene, &QPushButton::toggled, [=](bool checked)
     {
         editor->setHidden(checked);
         sceneBox->setVisible(checked);
-//        if (checked)
-//            stack->setCurrentWidget(sceneBox);
-//        else
-//            stack->setCurrentWidget(editor);
     });
 
     editor->hide();
@@ -361,25 +363,23 @@ MainWindow::MainWindow(QWidget *parent)
     btnPD = new QPushButton("ПО");
     btnPD->setObjectName("penDown");
     btnPD->setCheckable(true);
-//    btnPD->setAutoExclusive(true);
-    connect(btnPD, &QPushButton::clicked, [=]()
+    connect(btnPD, &QPushButton::clicked, [this]()
     {
         if (turtle)
             turtle->penDown();
     });
     btnPU = new QPushButton("ПП");
     btnPU->setObjectName("penUp");
-    btnPU->setFixedWidth(100);
+//    btnPU->setFixedWidth(100);
     btnPU->setCheckable(true);
-//    btnPU->setAutoExclusive(true);
-//    btnPU->setChecked(true);
-    connect(btnPU, &QPushButton::clicked, [=]()
+    connect(btnPU, &QPushButton::clicked, [this]()
     {
         if (turtle)
             turtle->penUp();
     });
-    QGroupBox *penbox = new QGroupBox();
+    QWidget *penbox = new QWidget();
     QHBoxLayout *penlay = new QHBoxLayout;
+    penlay->setContentsMargins(0, 0, 0, 0);
     penbox->setLayout(penlay);
     penlay->addWidget(btnPD);
     penlay->addWidget(btnPU);
@@ -387,15 +387,18 @@ MainWindow::MainWindow(QWidget *parent)
 //    stack->setCurrentIndex(1);
 
     QHBoxLayout *btnLay = new QHBoxLayout;
-    btnLay->addWidget(btnSave);
+    btnLay->addWidget(m_btnSave);
 //    btnLay->addStretch(1);
-    btnLay->addWidget(btnClose);
+    btnLay->addWidget(m_btnClose);
 
     QVBoxLayout *controlLay = new QVBoxLayout;
-    controlLay->addWidget(btnPlay);
-    controlLay->addWidget(stopBtn);
+    controlLay->addWidget(m_btnRun);
+    controlLay->addWidget(m_btnStop);
+    controlLay->addStretch(1);
     controlLay->addWidget(penbox);
-    controlLay->addWidget(joy, 1);
+    controlLay->addSpacing(font_size * 2);
+    controlLay->addWidget(joy);
+    controlLay->addSpacing(font_size * 2);
     controlLay->addWidget(btnScene);
 #if defined(ONB)
     controlLay->addWidget(enableBtn);
@@ -578,9 +581,9 @@ void MainWindow::onTimer()
         joy->setPos(gamepad->axisLeftX(), -gamepad->axisLeftY());
         if (!turtle->isBusy())
         {
-            if (gamepad->buttonL1())
+            if (gamepad->buttonL1() && !turtle->penState())
                 turtle->penDown();
-            else if (gamepad->buttonR1())
+            else if (gamepad->buttonR1() && turtle->penState())
                 turtle->penUp();
 
             if (gamepad->buttonA())
@@ -597,11 +600,25 @@ void MainWindow::onTimer()
         }
 
         if (gamepad->buttonLeft())
+        {
             scene->setView(Scene::ViewMain);
+            m_btnCamMain->setChecked(true);
+        }
         else if (gamepad->buttonUp())
+        {
             scene->setView(Scene::ViewTop);
+            m_btnCamTop->setChecked(true);
+        }
         else if (gamepad->buttonRight())
+        {
             scene->setView(Scene::ViewFollow);
+            m_btnCamFollow->setChecked(true);
+        }
+        else if (gamepad->buttonDown())
+        {
+            scene->setView(Scene::ViewChase);
+            m_btnCamChase->setChecked(true);
+        }
 
         QVector3D pos = scene->camera()->position();
         QVector3D dir = scene->camera()->direction();
@@ -635,6 +652,10 @@ void MainWindow::onTimer()
         if (turtle)
             turtle->setControl(v*3, w*3);
     }
+    else
+    {
+        m_btnRun->setDown(true);
+    }
 
     scene->integrate(dt);
 
@@ -666,6 +687,8 @@ void MainWindow::run()
 
     save();
 
+//    m_btnRun->setEnabled(false);
+
     editor->clearHighlights();
     editor->setReadOnly(true);
     mProgramListView->setEnabled(false);
@@ -678,6 +701,8 @@ void MainWindow::run()
 //        enableBtn->setChecked(true);
 //#endif
 //    btnScene->setChecked(true);
+
+    showScene();
 
     logo->execute(text, mProgramName, mDebug);
 
@@ -694,6 +719,7 @@ void MainWindow::step()
     }
     else
     {
+//        m_btnRun->setEnabled(true);
         logo->setDebugMode(true);
         logo->doDebugStep();
     }
@@ -722,7 +748,7 @@ void MainWindow::stop()
         console->selectAll();
         editor->clearHighlights();
     }
-    else
+    else if (!mProgramName.isEmpty() && mProgramName != "#console")
     {
         setDebugMode(true);
     }
@@ -730,12 +756,15 @@ void MainWindow::stop()
     console->setReadOnly(false);
     editor->setReadOnly(false);
 
+    m_btnRun->setDown(false);
+//    m_btnRun->setEnabled(true);
+
 #if defined(ONB)
     device->stop();
     enableBtn->setChecked(false);
 #endif
 
-    editor->setReadOnly(false);
+//    editor->setReadOnly(false);
     mProgramListView->setEnabled(true);
     qDebug() << "*** STOP ***";
 }
@@ -798,13 +827,13 @@ void MainWindow::listPrograms()
     if (!dir.exists("programs"))
         dir.mkdir("programs");
     dir.cd("programs");
-    QFile mainFile("programs/main.txt");
-    if (!mainFile.exists())
-    {
-        mainFile.open(QIODevice::WriteOnly);
-        mainFile.write("");
-        mainFile.close();
-    }
+//    QFile mainFile("programs/main.txt");
+//    if (!mainFile.exists())
+//    {
+//        mainFile.open(QIODevice::WriteOnly);
+//        mainFile.write("");
+//        mainFile.close();
+//    }
     QStringList filters;
     filters << "*.txt";
     QFileInfoList files = dir.entryInfoList(filters, QDir::Files, QDir::Name);
@@ -815,25 +844,11 @@ void MainWindow::listPrograms()
     {
         QString programName = file.baseName();//.toUpper();
         mPrograms << programName;
-
-//        QStringList params;
-//        params << programName;
-//        proc["ЗАГРУЗИТЬ"](params);
     }
 
     mProgramListModel->setStringList(mPrograms);
 
-//    mProgramListModel->insertRow(0);
-//    QModelIndex idx = mProgramListModel->index(0);
-//    mProgramListModel->setData(idx, "+");
-
     open(mProgramName);
-
-//    for (QString name: mPrograms)
-//    {
-//        QString text = load(name);
-//        logo->extractProcedures(text, name);
-//    }
 }
 
 QString MainWindow::path(QString name) const
@@ -862,9 +877,6 @@ void MainWindow::save()
 //        mProgramName = rx.cap(1);
 //    }
 
-//    if (mProgramName.isEmpty())
-//        mProgramName = "main";
-
     QString filename = path(mProgramName);
     bool reload = false;
     QFile file(filename);
@@ -890,7 +902,10 @@ void MainWindow::open(QString name)
 {
     QString filename = path(name);
     if (!QFile::exists(filename))
+    {
+        editor->hide();
         return;
+    }
     mProgramName = name;
     QString text = load(name);
     editor->setPlainText(text);
@@ -913,7 +928,7 @@ QString MainWindow::load(QString name)
 
 void MainWindow::updateCommands()
 {
-    for (QString name: mPrograms)
+    for (const QString &name: mPrograms)
     {
         QString text = load(name);
         logo->extractProcedures(text, name);
@@ -927,14 +942,22 @@ void MainWindow::setDebugMode(bool enabled)
     mDebug = enabled;
     if (mDebug)
     {
+        showScene();
         editor->show();
-        sceneBox->show();
+//        sceneBox->show();
     }
     else
     {
-        editor->hide();
-        sceneBox->show();
+//        editor->hide();
+//        sceneBox->show();
+        showScene();
     }
+}
+
+void MainWindow::showScene()
+{
+    sceneBox->show();
+    btnScene->setChecked(true);
 }
 
 

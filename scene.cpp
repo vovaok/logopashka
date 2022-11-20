@@ -34,6 +34,15 @@ Scene::Scene()
     m_followingCam->setZoom(1);
     m_followingCam->setFollowing(true);
 
+    m_chasingCam = new Camera3D(this);
+    m_chasingCam->setPosition(QVector3D(-50, 0, 20));
+    m_chasingCam->setTarget(QVector3D(0, 0, 5));
+    m_chasingCam->setTopDir(QVector3D(0, 0, 1));
+    m_chasingCam->setDistanceLimit(500);
+    m_chasingCam->setZoom(1);
+    m_chasingCam->setFollowing(true);
+    m_chasingCamDistance = 50; // cm
+
 //    setCamera(mFollowingCam);
 
 
@@ -127,27 +136,34 @@ void Scene::integrate(float dt)
     }
 
     Object3D *tob = m_robot;
-    QVector3D addPos = QVector3D(0, 0, 0);
 
     if (tob)
     {
-        QVector3D fp = tob->pos() + addPos;
-        float fi = tob->rot().z()*M_PI/180.0f;// tob->model()->yaw();
-        float dd = 0.5; // distance to robot, m
-        QVector3D fd = QVector3D(dd*100*cosf(fi), dd*100*sinf(fi), -25) ;
-        QVector3D pp = fp - fd;
-        static QVector3D ppold = QVector3D(0, 0, 0);
-        if (ppold.isNull())
-            ppold = pp;
-        ppold = (63*ppold + pp) / 64;
-//        m_followingCam->setPosition(ppold);
-////        while (collisionCheck(mFollowingCam, 10))
-////        {
-////            ppold += (fp - ppold) * 0.5;
-////            mFollowingCam->setPosition(ppold);
-////        }
+        QVector3D fp = tob->pos();
         m_followingCam->setTarget(fp);
-        m_followingCam->setTopDir(QVector3D(0, 0, 1));
+        QVector3D fdir = m_followingCam->position() - fp;
+        float fdist = fdir.length();
+        if (fdist < 20.0f)
+            m_followingCam->setPosition(fp + fdir * (20.0f / fdist));
+        if (fdist > 100.0f)
+            m_followingCam->setPosition(fp + fdir * (100.0f / fdist));
+
+        QVector3D ppold = m_chasingCam->position();
+        float hei = 25; // POV height
+        float fi = tob->rot().z()*M_PI/180.0f;
+        if (ppold != m_chaseCamPos)
+            m_chasingCamDistance = (tob->pos() - ppold + QVector3D(0, 0, hei)).length(); // distance to the target, cm
+        m_chasingCamDistance = qBound(10.0f, m_chasingCamDistance, 100.0f);
+        QVector3D fd = QVector3D(m_chasingCamDistance * cosf(fi), m_chasingCamDistance * sinf(fi), -hei) ;
+        QVector3D pp = fp - fd;
+        m_chaseCamPos = (31*ppold + pp) / 32;
+        m_chasingCam->setPosition(m_chaseCamPos);
+//        while (collisionCheck(mFollowingCam, 10))
+//        {
+//            ppold += (fp - ppold) * 0.5;
+//            mFollowingCam->setPosition(ppold);
+//        }
+        m_chasingCam->setTarget(fp);
     }
 }
 
@@ -159,6 +175,8 @@ Scene::ViewType Scene::view()
         return ViewTop;
     if (camera() == m_followingCam)
         return ViewFollow;
+    if (camera() == m_chasingCam)
+        return ViewChase;
 }
 
 void Scene::reset()
@@ -174,6 +192,7 @@ void Scene::setView(Scene::ViewType viewtype)
     case ViewMain: setCamera(m_mainCam); break;
     case ViewTop: setCamera(m_topCam); break;
     case ViewFollow: setCamera(m_followingCam); break;
+    case ViewChase: setCamera(m_chasingCam); break;
     }
 }
 
