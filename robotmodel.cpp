@@ -354,6 +354,40 @@ void RobotModel::setControl(float v, float w)
     m_wt = w*0.25f;
 }
 
+void RobotModel::setProperty(const char *name, float value)
+{
+    QString sname = QString(name).toLower();
+    if (sname == "joy")
+        joy = value;
+    else if (sname == "mood")
+        mood = value;
+    else if (sname == "sleepy")
+        sleepy = value;
+}
+
+float RobotModel::getProperty(const char *name) const
+{
+    QString sname = QString(name).toLower();
+    if (sname == "joy")
+        return joy;
+    else if (sname == "mood")
+        return mood;
+    else if (sname == "sleepy")
+        return sleepy;
+}
+
+bool RobotModel::hasProperty(const char *name) const
+{
+    QString sname = QString(name).toLower();
+    if (sname == "joy")
+        return true;
+    else if (sname == "mood")
+        return true;
+    else if (sname == "sleepy")
+        return true;
+    return false;
+}
+
 void RobotModel::setPose(float x, float y, float phi)
 {
     setPosition(x*100, y*100, 2.5f);
@@ -405,7 +439,10 @@ void RobotModel::updateFace()
     if (rand() < RAND_MAX / 100)
     {
         eyeX = (rand() % lrintf(5-sleepy/2)) - 2;
-        eyeY = (rand() % lrintf(6-sleepy)) - 2;
+        if (sleepy < 6)
+            eyeY = (rand() % lrintf(6-sleepy)) - 2;
+        else
+            eyeY = -2;
     }
 
     if (rand() < RAND_MAX / 500)
@@ -428,7 +465,7 @@ void RobotModel::updateFace()
     float r = size * 0.5f;
     float r2 = r*r;
     float ex = (eyeX * (2*R)) / 10.0f;
-    float ey = (-eyeY * (2*R)) / 10.0f;
+    float ey = (-eyeY * (2*(R-joy))) / 10.0f;
 
     for (int i=0; i<8; i++)
     {
@@ -455,6 +492,15 @@ void RobotModel::updateFace()
 //                screen->pixel(i, j) = 1;
 //                screen->pixel(15-i, j) = 1;
             }
+        }
+    }
+
+    if (joy > 0)
+    {
+        for (int i=0; i<joy; i++)
+        {
+            faceImage.setPixel(i/2+1, 9+i, m_eyeColor);
+            faceImage.setPixel(i/2+1, 8-i, m_eyeColor);
         }
     }
 

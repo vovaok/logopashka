@@ -245,13 +245,13 @@ MainWindow::MainWindow(QWidget *parent)
         if (isNative)
         {
             mProgramName = "";
-            QString text = "Встроенная команда: " + cmd + "\n";
+            QString text = ";Встроенная команда: " + cmd + "\n";
             QStringList aliases = proc.aliases();
             if (!aliases.isEmpty())
-                text += "Синонимы: " + aliases.join(", ") + "\n";
+                text += ";Синонимы: " + aliases.join(", ") + "\n";
             if (proc.textOffset())
             {
-                text += "\n";
+                text += "\n;";
                 QString desc = m_nativeCommandsText.mid(proc.textOffset(), proc.textLength());
                 desc = desc.replace(QRegExp("\n; ?"), "\n");
                 text += desc;

@@ -215,7 +215,10 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
 
     if (token.isVar())
     {
-        result = m_context->var(token);
+        if (m_turtle && m_turtle->hasProperty(token.toStdString().c_str()))
+            result = QString::number(m_turtle->getProperty(token.toStdString().c_str()));
+        else
+            result = m_context->var(token);
         if (result.isNull())
             raiseError("Переменная :" + token + " не найдена");
     }
@@ -588,7 +591,10 @@ void LogoInterpreter::createProcedures()
 
     m_proc["ИСПОЛНИТЬ"] = [this](QString name, QString value)
     {
-        m_context->setVar(name, value);
+        if (m_turtle && m_turtle->hasProperty(name.toStdString().c_str()))
+            m_turtle->setProperty(name.toStdString().c_str(), value.toFloat());
+        else
+            m_context->setVar(name, value);
     };
 
     m_proc["ПРОИЗВОЛЬНО"] = std::function<QString(QString)>([](QString max)

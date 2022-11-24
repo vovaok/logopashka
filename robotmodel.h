@@ -34,6 +34,10 @@ public:
 
     virtual void setControl(float v, float w) override;
 
+    virtual void setProperty(const char *name, float value) override;
+    virtual float getProperty(const char *name) const override;
+    virtual bool hasProperty(const char *name) const override;
+
     void integrate(float dt);
 
     void setPose(float x, float y, float phi);

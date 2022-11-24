@@ -29,6 +29,10 @@ public:
     virtual void showError(const char *message) {(void)message;}
     virtual void sound(float freq, float dur) {(void)freq; (void)dur;}
 
+    virtual void setProperty(const char *name, float value) {(void)name; (void)value;}
+    virtual float getProperty(const char *name) const {(void)name;}
+    virtual bool hasProperty(const char *name) const {(void)name;}
+
     virtual void setControl(float v, float w) {(void)v; (void)w;}
 
 protected:
