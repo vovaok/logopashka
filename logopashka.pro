@@ -5,12 +5,14 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = LogoPashka
 
 DEFINES += QT_DEPRECATED_WARNINGS
-#DEFINES += ONB
+DEFINES += ONB
 
 CONFIG += c++14
 
 COMPONENTS = d:/projects/qt/components5
-#include($$COMPONENTS/onb/onb.pri)
+contains (DEFINES, ONB) {
+    include($$COMPONENTS/onb/onb.pri)
+}
 include($$COMPONENTS/panel3d/panel3d.pri)
 include($$COMPONENTS/megawidgets/megawidgets.pri)
 
@@ -29,7 +31,6 @@ SOURCES += \
     logoprocedure.cpp \
     main.cpp \
     mainwindow.cpp \
-#    robot.cpp \
     codeeditor.cpp \
     programcontext.cpp \
     robotmodel.cpp \
@@ -41,13 +42,17 @@ HEADERS += \
     logointerpreter.h \
     logoprocedure.h \
     mainwindow.h \
-#    robot.h \
     codeeditor.h \
     programcontext.h \
     robotmodel.h \
     scene.h \
     sound.h \
     turtleinterface.h
+
+contains (DEFINES, ONB) {
+    SOURCES += onbturtle.cpp
+    HEADERS += onbturtle.h
+}
 
 #win32: {
 #SOURCES += spacemouse.cpp

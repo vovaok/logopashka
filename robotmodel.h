@@ -30,7 +30,7 @@ public:
     virtual void print(const char *s) override;
     virtual void cls() override;
     virtual void showError(const char *message) override;
-    virtual void sound(float freq, float dur);
+    virtual void sound(float freq, float dur) override;
 
     virtual void setControl(float v, float w) override;
 

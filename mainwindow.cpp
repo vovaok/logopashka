@@ -65,24 +65,25 @@ MainWindow::MainWindow(QWidget *parent)
     oviMaster->setName("main");
     onbvi->setActive(true);
 
-    device = new Robot();
+    device = new OnbTurtle();
     oviMaster->registerDevice(device, 13);
 #endif
 
     connLed = new Led(QColor(139, 237, 139));
-    connLed->setFixedSize(50, 50);
+    connLed->setFixedSize(60, 60);
     ui->statusbar->addWidget(connLed);
-    connlabel = new QLabel("disconnected");
+    connlabel = new QLabel("");
     ui->statusbar->addWidget(connlabel);
 
-#if defined(ONB)
-    enableBtn = new QPushButton("Enable");
+    enableBtn = new QPushButton("Включить");
     enableBtn->setCheckable(true);
     connect(enableBtn, &QPushButton::toggled, [=](bool checked)
     {
+#if defined(ONB)
         device->setEnabled(checked);
-    });
 #endif
+    });
+    enableBtn->hide();
 
     joy = new JoystickWidget;
     joy->setColor(QColor(127, 185, 187));
@@ -210,10 +211,20 @@ MainWindow::MainWindow(QWidget *parent)
     {
         if (console->isReadOnly())
             return;
+        if (console->text().isEmpty())
+            return;
+
         save();
         console->setReadOnly(true);
         editor->setReadOnly(true);
-        showScene();
+        if (enableBtn->isVisible())
+        {
+            enableBtn->setChecked(true);
+        }
+        else
+        {
+            showScene();
+        }
         mProgramListView->setEnabled(false);
 //        m_btnRun->setEnabled(false);
         logo->execute(console->text(), "#console");
@@ -358,6 +369,34 @@ MainWindow::MainWindow(QWidget *parent)
         sceneBox->setVisible(checked);
     });
 
+#if defined(ONB)
+    connect(oviMaster, &ObjnetMaster::devConnected, [=](uint8_t addr)
+    {
+        if (addr == device->netAddress() && device->name() == "SpeedCtl")
+        {
+            btnScene->hide();
+            enableBtn->show();
+            turtle = device;
+            logo->setTurtle(turtle);
+            sceneBox->hide();
+            editor->show();
+        }
+    });
+
+    connect(oviMaster, &ObjnetMaster::devDisconnected, [=](uint8_t addr)
+    {
+        if (addr == device->netAddress())
+        {
+            enableBtn->hide();
+            btnScene->show();
+            turtle = scene->turtle();
+            logo->setTurtle(turtle);
+            sceneBox->show();
+            editor->hide();
+        }
+    });
+#endif
+
     editor->hide();
 
     btnPD = new QPushButton("ПО");
@@ -400,9 +439,7 @@ MainWindow::MainWindow(QWidget *parent)
     controlLay->addWidget(joy);
     controlLay->addSpacing(font_size * 2);
     controlLay->addWidget(btnScene);
-#if defined(ONB)
     controlLay->addWidget(enableBtn);
-#endif
 
     QTabWidget *mLeftWidget = new QTabWidget;
     mLeftWidget->addTab(progw, "Программы");
@@ -437,18 +474,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     listPrograms();
     updateCommands();
-
-#if defined(ONB)
-    connect(device, &Robot::commandCompleted, [=]()
-    {
-        mProcessing = false;
-    });
-#endif
-
-//    connect(scene, &Scene::commandCompleted, [=]()
-//    {
-//        mProcessing = false;
-//    });
 
     connect(mProgramListView, &QListView::clicked, [=](const QModelIndex &idx)
     {
@@ -572,9 +597,10 @@ void MainWindow::onTimer()
 //        dwz = qBound(-0.1, r->z() - x[5], 0.1);
 //    }
 
-#if defined(ONB)
-    device->update();
-#endif
+// this is doing in the OnbTurtle class
+//#if defined(ONB)
+//    device->update();
+//#endif
 
     if (gamepad->isConnected())
     {
@@ -646,9 +672,6 @@ void MainWindow::onTimer()
     {
         float v = joy->y();
         float w = -joy->x();// * 10;
-#if defined(ONB)
-        device->setControl(v*3, w*3);
-#endif
         if (turtle)
             turtle->setControl(v*3, w*3);
     }
@@ -663,9 +686,9 @@ void MainWindow::onTimer()
     bool conn = device->isValid() && device->isPresent();
     connLed->setState(conn);
     if (conn)
-        connlabel->setText("connected");
+        connlabel->setText("Черепашка подключилась!");
     else
-        connlabel->setText("disconnected");
+        connlabel->setText("");
 #endif
 
     scene->update();
@@ -696,13 +719,11 @@ void MainWindow::run()
 //    if (!mProgramName.isEmpty() && mProgramName != "MAIN")
 //        text = mProgramName;
 //    setDebugMode(false);
-//#if defined(ONB)
-//    if (!device->isEnabled())
-//        enableBtn->setChecked(true);
-//#endif
-//    btnScene->setChecked(true);
 
-    showScene();
+    if (enableBtn->isVisible())
+        enableBtn->setChecked(true);
+    else
+        showScene();
 
     logo->execute(text, mProgramName, mDebug);
 
@@ -942,15 +963,14 @@ void MainWindow::setDebugMode(bool enabled)
     mDebug = enabled;
     if (mDebug)
     {
-        showScene();
+        if (btnScene->isVisible())
+            showScene();
         editor->show();
-//        sceneBox->show();
     }
     else
     {
-//        editor->hide();
-//        sceneBox->show();
-        showScene();
+        if (btnScene->isVisible())
+            showScene();
     }
 }
 

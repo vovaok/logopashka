@@ -7,7 +7,7 @@
 #include "objnetvirtualserver.h"
 #include "objnetvirtualinterface.h"
 #include "objnetmaster.h"
-#include "robot.h"
+#include "onbturtle.h"
 #endif
 #include "joystickwidget.h"
 #include "led.h"
@@ -51,8 +51,7 @@ private:
     ObjnetVirtualInterface *onbvi;
 
     ObjnetMaster *oviMaster;
-    Robot *device;
-    QPushButton *enableBtn;
+    OnbTurtle *device;
 #endif
 
     Scene *scene;
@@ -60,6 +59,7 @@ private:
 
     QGroupBox *sceneBox;
     QPushButton *btnScene;
+    QPushButton *enableBtn;
     QPushButton *btnPU, *btnPD;
 
     QPushButton *m_btnRun, *m_btnStop, *m_btnSave, *m_btnClose;
