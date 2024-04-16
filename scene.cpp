@@ -91,6 +91,7 @@ Scene::Scene()
 
     m_robot = new RobotModel(root());
     connect(m_robot, &RobotModel::needClearScreen, this, &Scene::reset);
+    connect(m_robot, &RobotModel::commandIssued, this, &Scene::onTurtleCommand);
 }
 
 void Scene::drawCheckerboard(QPainter *p, const QRect &rect)
@@ -183,6 +184,109 @@ void Scene::reset()
 {
     m_robot->setPose(0, 0, 0);
     m_clear = 15;
+}
+
+void Scene::onTurtleCommand(QString s, QString arg)
+{
+    if (s == "scene.extrudePath")
+    {
+        float height = arg.toFloat() * 0.01;
+        const QStringList list = m_robot->pathTraced();
+        PointCloud3D *obj = new PointCloud3D(m_floor);
+        obj->setMeshVisible(true);
+        float x=0, y=0, phi=0;
+        union
+        {
+            uint32_t color = 0xFF000000;
+            uint8_t colorBytes[4];
+        };
+
+        for (const QString &s: list)
+        {
+            qDebug() << s;
+            QStringList arg = s.split(' ');
+            if (arg[0] == "pose")
+            {
+                x = arg[1].toFloat();
+                y = arg[2].toFloat();
+                phi = arg[3].toFloat();
+            }
+            else if (arg[0] == "col")
+            {
+                qDebug() << "setColor to" << arg[1];
+                color = arg[1].toUInt();
+                std::swap(colorBytes[0], colorBytes[2]);
+            }
+            else if (s.startsWith("rot"))
+            {
+                phi += arg[1].toFloat() * M_PI / 180.0;
+            }
+            else if (s.startsWith("tr"))
+            {
+                float dr = arg[1].toFloat() * 0.01;
+                float dx = dr * cos(phi);
+                float dy = dr * sin(phi);
+
+                float p1[3] = {x, y, 0};
+                float p2[3] = {x+dx, y+dy, 0};
+                float p3[3] = {x, y, height};
+                float p4[3] = {x+dx, y+dy, height};
+                float n[3] = {-sin(phi), cos(phi), 0};
+                obj->addXYZRGBAPoint(p1, color, n);
+                obj->addXYZRGBAPoint(p2, color, n);
+                obj->addXYZRGBAPoint(p3, color, n);
+                obj->addXYZRGBAPoint(p3, color, n);
+                obj->addXYZRGBAPoint(p2, color, n);
+                obj->addXYZRGBAPoint(p4, color, n);
+
+                x += dx;
+                y += dy;
+            }
+            else if (s.startsWith("arc"))
+            {
+                float r = arg[1].toFloat() * 0.01;
+                float a = arg[2].toFloat() * M_PI / 180.0;
+                int N = qMax(10, static_cast<int>(round(a / 10))); // draw arc by 10-degrees chunks
+
+//                float m_vt = a > 0? vmax: -vmax;
+//                float m_wt = m_vt / (radius * 0.01f);
+//                if (m_wt > wmax)
+//                {
+//                    m_vt *= wmax / m_wt;
+//                    m_wt = wmax;
+//                }
+//                else if (m_wt < -wmax)
+//                {
+//                    m_vt *= -wmax / m_wt;
+//                    m_wt = -wmax;
+//                }
+
+                for (int i=0; i<N; i++)
+                {
+                    float dphi = a / N;
+                    float dx = r * cos(dphi);
+                    float dy = r * sin(dphi);
+
+                    float p1[3] = {x, y, 0};
+                    float p2[3] = {x+dx, y+dy, 0};
+                    float p3[3] = {x, y, height};
+                    float p4[3] = {x+dx, y+dy, height};
+                    float n1[3] = {-sin(phi), cos(phi), 0};
+                    float n2[3] = {-sin(phi+dphi), cos(phi+dphi), 0};
+                    obj->addXYZRGBAPoint(p1, color, n1);
+                    obj->addXYZRGBAPoint(p2, color, n2);
+                    obj->addXYZRGBAPoint(p3, color, n1);
+                    obj->addXYZRGBAPoint(p3, color, n1);
+                    obj->addXYZRGBAPoint(p2, color, n2);
+                    obj->addXYZRGBAPoint(p4, color, n2);
+
+                    x += dx;
+                    y += dy;
+                    phi += dphi;
+                }
+            }
+        }
+    }
 }
 
 void Scene::setView(Scene::ViewType viewtype)

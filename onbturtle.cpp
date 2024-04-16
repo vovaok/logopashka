@@ -78,30 +78,38 @@ void OnbTurtle::setControl(float v, float w)
 
 void OnbTurtle::forward(float value)
 {
-    mBusyV = 1;
+    if (value <= 0)
+        return;
+    mBusyV = 2;
     m_busy = true;
     sendObject("forward", value*0.5*20/44);
 }
 
 void OnbTurtle::backward(float value)
 {
-    mBusyV = 1;
+    if (value <= 0)
+        return;
+    mBusyV = 2;
     m_busy = true;
     sendObject("backward", value*0.5*20/44);
 }
 
 void OnbTurtle::left(float value)
 {
-    mBusyW = 1;
+    if (value <= 0)
+        return;
+    mBusyW = 2;
     m_busy = true;
-    sendObject("left", value * 7.3f / 360);
+    sendObject("left", value * 7.2f / 360); // 7.3
 }
 
 void OnbTurtle::right(float value)
 {
-    mBusyW = 1;
+    if (value <= 0)
+        return;
+    mBusyW = 2;
     m_busy = true;
-    sendObject("right", value * 7.3f / 360);
+    sendObject("right", value * 7.2f / 360); // 7.3
 }
 
 void OnbTurtle::stop()
@@ -114,7 +122,7 @@ void OnbTurtle::stop()
 
 void OnbTurtle::penUp()
 {
-    mBusyPen = 1;
+    mBusyPen = 3;
     m_busy = true;
     m_penState = false;
     sendObject("penUp");
@@ -122,7 +130,7 @@ void OnbTurtle::penUp()
 
 void OnbTurtle::penDown()
 {
-    mBusyPen = 1;
+    mBusyPen = 3;
     m_busy = true;
     m_penState = true;
     sendObject("penDown");

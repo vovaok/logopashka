@@ -1,6 +1,7 @@
 #ifndef ROBOTMODEL_H
 #define ROBOTMODEL_H
 
+//#include <QPainterPath>
 #include "turtleinterface.h"
 #include "object3d.h"
 #include "mesh3d.h"
@@ -38,6 +39,8 @@ public:
     virtual float getProperty(const char *name) const override;
     virtual bool hasProperty(const char *name) const override;
 
+    virtual void runCommand(const char *name, const char *arg) override;
+
     void integrate(float dt);
 
     void setPose(float x, float y, float phi);
@@ -49,10 +52,13 @@ public:
 
 signals:
     void needClearScreen();
+    void commandIssued(QString cmd, QString arg);
 
 protected:
     friend class Scene;
     void updateSheet(QPainter *p);
+
+    const QStringList &pathTraced() const {return m_pathTraced;}
 
 private:
     Mesh3D *mBase;
@@ -95,6 +101,10 @@ private:
     bool m_needScreenUpdate;
     int m_screenX, m_screenY; // turtle's screen text coords
     float m_balloonScale, m_balloonScaleRate;
+
+    bool m_tracePath = false;
+//    QPainterPath m_pathTraced;
+    QStringList m_pathTraced;
 
     void reset();
     void updateFace();

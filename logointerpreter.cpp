@@ -283,9 +283,9 @@ LogoInterpreter::Result LogoInterpreter::eval(Token token)
                 return Result::Void;
         }
 
-//        qDebug() << ">>" << token << params;
+        qDebug() << ">>" << token << params;
         result = m_proc[token](params);
-//        qDebug() << "<<" << result;
+        qDebug() << "<<" << result;
     }
     else if (token.type() == Token::Wrd)
     {
@@ -473,6 +473,14 @@ void LogoInterpreter::createProcedures()
         {
             m_turtle->clearScreen();
             waitTurtle();
+        }
+    };
+
+    m_proc["ВЫТЯНУТЬКОНТУР"] = [this](QString height)
+    {
+        if (m_turtle)
+        {
+            m_turtle->runCommand("scene.extrudePath", height.toUtf8().data());
         }
     };
 

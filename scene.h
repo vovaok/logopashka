@@ -46,6 +46,8 @@ public:
 public slots:
     void setView(ViewType viewtype);
     void reset();
+
+    void onTurtleCommand(QString s, QString arg);
 };
 
 #endif // SCENE_H

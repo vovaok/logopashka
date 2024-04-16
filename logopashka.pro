@@ -10,11 +10,11 @@ DEFINES += ONB
 CONFIG += c++14
 
 COMPONENTS = d:/projects/qt/components5
+include($$COMPONENTS/panel3d/panel3d.pri)
+include($$COMPONENTS/megawidgets/megawidgets.pri)
 contains (DEFINES, ONB) {
     include($$COMPONENTS/onb/onb.pri)
 }
-include($$COMPONENTS/panel3d/panel3d.pri)
-include($$COMPONENTS/megawidgets/megawidgets.pri)
 
 win32: {
     include($$COMPONENTS/usbhid/usbhid.pri)

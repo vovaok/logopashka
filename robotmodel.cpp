@@ -135,6 +135,7 @@ void RobotModel::forward(float value)
     m_wt = 0;
     m_cmdTime = value * 0.01f / vmax;
     m_busy = true;
+    m_pathTraced << "tr " + QString::number(value);
 }
 
 void RobotModel::backward(float value)
@@ -143,6 +144,7 @@ void RobotModel::backward(float value)
     m_wt = 0;
     m_cmdTime = value * 0.01f / vmax;
     m_busy = true;
+    m_pathTraced << "tr " + QString::number(-value);
 }
 
 void RobotModel::right(float value)
@@ -151,6 +153,7 @@ void RobotModel::right(float value)
     m_wt = -wmax;
     m_cmdTime = value * M_PI / 180 / wmax;
     m_busy = true;
+    m_pathTraced << "rot " + QString::number(-value);
 }
 
 void RobotModel::left(float value)
@@ -159,15 +162,24 @@ void RobotModel::left(float value)
     m_wt = wmax;
     m_cmdTime = value * M_PI / 180 / wmax;
     m_busy = true;
+    m_pathTraced << "rot " + QString::number(value);
 }
 
 void RobotModel::penUp()
 {
+    m_tracePath = false;
     setPenEnabled(false);
 }
 
 void RobotModel::penDown()
 {
+    if (!m_tracePath)
+    {
+        m_tracePath = true;
+        m_pathTraced.clear();
+        m_pathTraced << QString("pose %1 %2 %3").arg(m_x).arg(m_y).arg(m_phi);
+        m_pathTraced << "col " + QString::number(m_penColor.rgba());
+    }
     setPenEnabled(true);
 }
 
@@ -187,6 +199,7 @@ void RobotModel::arc(float radius, float degrees)
     }
     m_cmdTime = fabs(degrees * M_PI / 180 / m_wt);
     m_busy = true;
+    m_pathTraced << QString("arc %1 %2").arg(radius).arg(degrees);
 }
 
 void RobotModel::clearScreen()
@@ -194,6 +207,7 @@ void RobotModel::clearScreen()
     reset();
     m_cmdTime = 0.25f;
     m_busy = true;
+    m_pathTraced.clear();
     emit needClearScreen();
 }
 
@@ -210,6 +224,7 @@ void RobotModel::setColor(unsigned int rgb)
     m_cmdTime = 0.1f;
     m_busy = true;
     setPenColor(QColor::fromRgb(rgb));
+    m_pathTraced << "col " + QString::number(rgb);
 }
 
 void RobotModel::putchar(char c)
@@ -374,6 +389,7 @@ float RobotModel::getProperty(const char *name) const
         return mood;
     else if (sname == "sleepy")
         return sleepy;
+    return NAN;
 }
 
 bool RobotModel::hasProperty(const char *name) const
@@ -386,6 +402,11 @@ bool RobotModel::hasProperty(const char *name) const
     else if (sname == "sleepy")
         return true;
     return false;
+}
+
+void RobotModel::runCommand(const char *name, const char *arg)
+{
+    emit commandIssued(name, arg);
 }
 
 void RobotModel::setPose(float x, float y, float phi)

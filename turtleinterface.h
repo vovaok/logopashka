@@ -29,8 +29,10 @@ public:
     virtual void sound(float freq, float duration) {(void)freq; (void)duration;}
 
     virtual void setProperty(const char *name, float value) {(void)name; (void)value;}
-    virtual float getProperty(const char *name) const {(void)name;}
-    virtual bool hasProperty(const char *name) const {(void)name;}
+    virtual float getProperty(const char *name) const {(void)name; return 0;}
+    virtual bool hasProperty(const char *name) const {(void)name; return false;}
+
+    virtual void runCommand(const char *name, const char *arg) {(void)name;}
 
     virtual void setControl(float v, float w) {(void)v; (void)w;}
 
