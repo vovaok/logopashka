@@ -8,5 +8,6 @@
         <file>model/robot.wrl</file>
         <file>model/wheel.wrl</file>
         <file>proc.txt</file>
+        <file>model/star.wrl</file>
     </qresource>
 </RCC>

@@ -447,6 +447,7 @@ void LogoInterpreter::createProcedures()
                 colors["РОЗОВЫЙ"] = 0xFFA0A0;
                 colors["КОРИЧНЕВЫЙ"] = 0x804000;
                 colors["БЕЖЕВЫЙ"] = 0xFFDCBA;
+                colors["РАДУЖНЫЙ"] = 0xFFFFFFFF; // special value: -1
                 if (colors.contains(color))
                     col = colors[color];
                 else
@@ -522,6 +523,33 @@ void LogoInterpreter::createProcedures()
                 }
             }
             raiseError("Параметры заданы неверно");
+        }
+    };
+
+    m_proc["ПАЛОЧКУДОСТАТЬ"] = [this]()
+    {
+        if (m_turtle)
+        {
+            m_turtle->runCommand("showWand", "");
+            waitTurtle();
+        }
+    };
+    createAlias("ПАЛОЧКУДОСТАТЬ", "ПД");
+    m_proc["ПАЛОЧКУУБРАТЬ"] = [this]()
+    {
+        if (m_turtle)
+        {
+            m_turtle->runCommand("hideWand", "");
+            waitTurtle();
+        }
+    };
+    createAlias("ПАЛОЧКУУБРАТЬ", "ПУ");
+    m_proc["КОЛДОВАТЬ"] = [this]()
+    {
+        if (m_turtle)
+        {
+            m_turtle->runCommand("doMagic", "");
+            waitTurtle();
         }
     };
 

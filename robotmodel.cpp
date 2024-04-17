@@ -66,6 +66,26 @@ RobotModel::RobotModel(Object3D *parent) :
     setPenColor(m_penColor);
     setPenEnabled(false);
 
+    m_star = new Mesh3D(mPen);
+    m_star->loadModel(":/model/star.wrl", Mesh3D::AssignOneColor);
+    m_star->mesh()->scaleUniform(10);
+    m_star->updateModel();
+    m_star->setColor(QColor(255, 128, 0));
+    m_star->setPosition(0, 0, 11);
+    m_star->setZOrient(90);
+//    m_star->setVisible(false);
+    m_star->setUniformScale(0);
+
+    m_magic = new PointCloud3D(scene()->root());
+    m_magic->setPointSize(5);
+    m_magic->setVisible(false);
+    for (int i=0; i<100; i++)
+    {
+        QColor c = QColor::fromHsl(rand() % 360, 255, 128);
+        magic << MagicPoint{0, 0, 0, c.rgb(), 0, 0, 0, 0};
+    }
+    m_magic->setDataBuffer(magic.data(), 12, sizeof(MagicPoint), magic.size());
+
     Primitive3D *face = new Primitive3D(mBase);
     face->setPlane(QVector3D(3.5f, 0, 0), QVector3D(0, 7, 0));
     face->setOrient(0, -80, 0);
@@ -223,8 +243,15 @@ void RobotModel::setColor(unsigned int rgb)
 {
     m_cmdTime = 0.1f;
     m_busy = true;
-    setPenColor(QColor::fromRgb(rgb));
-    m_pathTraced << "col " + QString::number(rgb);
+    if (rgb == 0xFFFFFFFF)
+    {
+        m_colorHue = m_penColor.hue();
+        m_rainbow = true;
+    }
+    else
+    {
+        setPenColor(QColor::fromRgb(rgb));
+    }
 }
 
 void RobotModel::putchar(char c)
@@ -351,6 +378,18 @@ void RobotModel::integrate(float dt)
     setPose(m_x, m_y, m_phi);
     updateFace();
     updateScreen();
+    updateStar();
+
+    if (m_magic->isVisible())
+        updateMagic(dt);
+
+    if (m_rainbow)
+    {
+        m_colorHue++;
+        if (m_colorHue >= 360)
+            m_colorHue = 0;
+        setPenColor(QColor::fromHsl(m_colorHue, 255, 128));
+    }
 
     if (mBalloon->isVisible())
     {
@@ -406,7 +445,16 @@ bool RobotModel::hasProperty(const char *name) const
 
 void RobotModel::runCommand(const char *name, const char *arg)
 {
-    emit commandIssued(name, arg);
+    QString cmd = name;
+    QString a = arg;
+    if (cmd == "showWand")
+        setStarVisible(true);
+    else if (cmd == "hideWand")
+        setStarVisible(false);
+    else if (cmd == "doMagic" && m_starVisible)
+        startMagic();
+    else
+        emit commandIssued(cmd, a);
 }
 
 void RobotModel::setPose(float x, float y, float phi)
@@ -571,10 +619,14 @@ void RobotModel::updateFace()
 
 void RobotModel::setPenColor(QColor color)
 {
-    m_penColor = color;
-    mPen->setColor(color, Qt::white, Qt::black, 0.25, 10);
-    qobject_cast<Object3D*>(mPen->children().at(0))->setColor(color);
-    qobject_cast<Object3D*>(mPen->children().at(0)->children().at(0))->setColor(color.darker());
+    if (m_penColor != color)
+    {
+        m_penColor = color;
+        m_pathTraced << "col " + QString::number(color.rgb());
+        mPen->setColor(color, Qt::white, Qt::black, 0.25, 10);
+        qobject_cast<Object3D*>(mPen->children().at(0))->setColor(color);
+        qobject_cast<Object3D*>(mPen->children().at(0)->children().at(0))->setColor(color.darker());
+    }
 }
 
 void RobotModel::setBalloonVisible(bool visible)
@@ -585,7 +637,25 @@ void RobotModel::setBalloonVisible(bool visible)
     m_cmdTime = (1.0f - m_balloonScale) / fabs(m_balloonScaleRate);
     m_busy = true;
     mBalloonArrow->setVisible(visible);
-//    mBalloon->setVisible(visible);
+    //    mBalloon->setVisible(visible);
+}
+
+void RobotModel::setStarVisible(bool visible)
+{
+    m_starVisible = visible;
+    m_cmdTime = 0.5f;
+    m_busy = true;
+}
+
+void RobotModel::startMagic()
+{
+    m_magic->setVisible(true);
+    m_magicActive = true;
+    m_magicTurns++;
+    for (MagicPoint &p: magic)
+        p.active = true;
+    m_cmdTime = 0.5f;
+    m_busy = true;
 }
 
 void RobotModel::updateScreen()
@@ -621,6 +691,73 @@ void RobotModel::updateScreen()
         p->fillRect(0, 0, 128+12, 64+12, Qt::white);
         p->drawImage(6, 6, m_screenImg);
         mScreen->paintEnd();
+    }
+}
+
+void RobotModel::updateStar()
+{
+    float size = m_starSize;
+    if (m_starVisible && m_starSize < 1)
+        size += 0.05;
+    else if (!m_starVisible && m_starSize > 0)
+        size -= 0.05;
+
+    if (size != m_starSize)
+    {
+        m_star->setUniformScale(m_starSize);
+        m_starSize = size;
+    }
+}
+
+void RobotModel::updateMagic(float dt)
+{
+    GLfloat T[16];
+    m_star->findRootTransform(T);
+    bool done = true;
+    for (MagicPoint &p: magic)
+    {
+        if (p.active)
+        {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.z += p.vz * dt;
+            p.vx *= 0.95;
+            p.vy *= 0.95;
+            p.vz *= 0.95;
+            p.vz -= 0.981 * dt;
+            done = false;
+        }
+        if (p.z < 0)
+        {
+            if (m_magicActive && m_starVisible)
+            {
+                p.x = T[12] * 0.01;
+                p.y = T[13] * 0.01;
+                p.z = (T[14] + 2.5) * 0.01;
+                p.vx = rnd(0.1);
+                p.vy = rnd(0.1);
+                p.vz = 0.1 + rnd(0.1);
+            }
+            else
+            {
+                p.active = false;
+            }
+        }
+    }
+
+    float spin = m_star->rot().z() + 5;
+    if (spin > m_magicTurns * 180)
+    {
+        m_magicActive = false;
+        m_magicTurns = 0;
+        m_star->setZRot(0);
+    }
+    if (m_magicActive)
+        m_star->setZRot(spin);
+
+    if (done)
+    {
+        m_magic->setVisible(false);
     }
 }
 

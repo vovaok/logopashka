@@ -6,6 +6,7 @@
 #include "object3d.h"
 #include "mesh3d.h"
 #include "primitive3d.h"
+#include "pointcloud3d.h"
 #include "texture.h"
 #include "sound.h"
 
@@ -59,15 +60,27 @@ protected:
     void updateSheet(QPainter *p);
 
     const QStringList &pathTraced() const {return m_pathTraced;}
+    void resetPath() {m_pathTraced.clear();}
 
 private:
     Mesh3D *mBase;
     Mesh3D *mWheelL, *mWheelR;
     Mesh3D *mActu;
+    Mesh3D *m_star;
     Primitive3D *mPen;
     DynamicTexture *mFace;
     DynamicTexture *mScreen;
     Primitive3D *mBalloon, *mBalloonArrow;
+    PointCloud3D *m_magic;
+
+    struct MagicPoint
+    {
+        float x, y, z;
+        uint32_t color;
+        float vx, vy, vz;
+        uint32_t active;
+    };
+    QVector<MagicPoint> magic;
 
     Sound *m_sound;
 
@@ -102,6 +115,13 @@ private:
     int m_screenX, m_screenY; // turtle's screen text coords
     float m_balloonScale, m_balloonScaleRate;
 
+    bool m_magicActive = false;
+    int m_magicTurns = 0;
+    bool m_starVisible = false;
+    float m_starSize = 0;
+    bool m_rainbow = false;
+    int m_colorHue = 0;
+
     bool m_tracePath = false;
 //    QPainterPath m_pathTraced;
     QStringList m_pathTraced;
@@ -110,7 +130,19 @@ private:
     void updateFace();
     void setPenColor(QColor color);
     void setBalloonVisible(bool visible);
+    void setStarVisible(bool visible);
+    void startMagic();
     void updateScreen();
+    void updateStar();
+    void updateMagic(float dt);
+
+    float rnd(float rms)
+    {
+        float x = -6;
+        for (int i=0; i<12; i++)
+            x += rand() / (float)(RAND_MAX);
+        return x * rms;
+    }
 };
 
 #endif // ROBOTMODEL_H

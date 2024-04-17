@@ -194,12 +194,15 @@ void Scene::onTurtleCommand(QString s, QString arg)
         const QStringList list = m_robot->pathTraced();
         PointCloud3D *obj = new PointCloud3D(m_floor);
         obj->setMeshVisible(true);
+        obj->setLightingEnabled(true);
         float x=0, y=0, phi=0;
         union
         {
             uint32_t color = 0xFF000000;
             uint8_t colorBytes[4];
         };
+
+        QVector<QVector3D> cap;
 
         for (const QString &s: list)
         {
@@ -213,7 +216,7 @@ void Scene::onTurtleCommand(QString s, QString arg)
             }
             else if (arg[0] == "col")
             {
-                qDebug() << "setColor to" << arg[1];
+//                qDebug() << "setColor to" << arg[1];
                 color = arg[1].toUInt();
                 std::swap(colorBytes[0], colorBytes[2]);
             }
@@ -231,13 +234,15 @@ void Scene::onTurtleCommand(QString s, QString arg)
                 float p2[3] = {x+dx, y+dy, 0};
                 float p3[3] = {x, y, height};
                 float p4[3] = {x+dx, y+dy, height};
-                float n[3] = {-sin(phi), cos(phi), 0};
+                float n[3] = {sin(phi), -cos(phi), 0};
                 obj->addXYZRGBAPoint(p1, color, n);
                 obj->addXYZRGBAPoint(p2, color, n);
                 obj->addXYZRGBAPoint(p3, color, n);
                 obj->addXYZRGBAPoint(p3, color, n);
                 obj->addXYZRGBAPoint(p2, color, n);
                 obj->addXYZRGBAPoint(p4, color, n);
+
+                cap << QVector3D(x, y, height);
 
                 x += dx;
                 y += dy;
@@ -248,31 +253,20 @@ void Scene::onTurtleCommand(QString s, QString arg)
                 float a = arg[2].toFloat() * M_PI / 180.0;
                 int N = qMax(10, static_cast<int>(round(a / 10))); // draw arc by 10-degrees chunks
 
-//                float m_vt = a > 0? vmax: -vmax;
-//                float m_wt = m_vt / (radius * 0.01f);
-//                if (m_wt > wmax)
-//                {
-//                    m_vt *= wmax / m_wt;
-//                    m_wt = wmax;
-//                }
-//                else if (m_wt < -wmax)
-//                {
-//                    m_vt *= -wmax / m_wt;
-//                    m_wt = -wmax;
-//                }
-
                 for (int i=0; i<N; i++)
                 {
                     float dphi = a / N;
-                    float dx = r * cos(dphi);
-                    float dy = r * sin(dphi);
+                    float du = r * sin(dphi);
+                    float dv = r * (1 - cos(dphi));
+                    float dx = du * cos(phi) - dv * sin(phi);
+                    float dy = du * sin(phi) + dv * cos(phi);
 
                     float p1[3] = {x, y, 0};
                     float p2[3] = {x+dx, y+dy, 0};
                     float p3[3] = {x, y, height};
                     float p4[3] = {x+dx, y+dy, height};
-                    float n1[3] = {-sin(phi), cos(phi), 0};
-                    float n2[3] = {-sin(phi+dphi), cos(phi+dphi), 0};
+                    float n1[3] = {sin(phi), -cos(phi), 0};
+                    float n2[3] = {sin(phi+dphi), -cos(phi+dphi), 0};
                     obj->addXYZRGBAPoint(p1, color, n1);
                     obj->addXYZRGBAPoint(p2, color, n2);
                     obj->addXYZRGBAPoint(p3, color, n1);
@@ -280,12 +274,40 @@ void Scene::onTurtleCommand(QString s, QString arg)
                     obj->addXYZRGBAPoint(p2, color, n2);
                     obj->addXYZRGBAPoint(p4, color, n2);
 
+                    cap << QVector3D(x, y, height);
+
                     x += dx;
                     y += dy;
                     phi += dphi;
                 }
             }
         }
+
+        cap << QVector3D(x, y, height);
+
+        int N = cap.size();
+        if (N >= 3)
+        {
+            QVector3D capc;
+            for (const QVector3D &v: cap)
+                capc += v;
+            capc /= N;
+
+            for (int i=0; i<N; i++)
+            {
+                QVector3D v1 = cap[i];
+                QVector3D v2 = cap[(i+1) % N];
+                float p1[3] = {v1.x(), v1.y(), v1.z()};
+                float p2[3] = {v2.x(), v2.y(), v2.z()};
+                float p3[3] = {capc.x(), capc.y(), capc.z()};
+                float n[3] = {0, 0, 1};
+                obj->addXYZRGBAPoint(p1, color, n);
+                obj->addXYZRGBAPoint(p2, color, n);
+                obj->addXYZRGBAPoint(p3, color, n);
+            }
+        }
+
+        m_robot->resetPath();
     }
 }
 
