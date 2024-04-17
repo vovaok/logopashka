@@ -155,7 +155,8 @@ void RobotModel::forward(float value)
     m_wt = 0;
     m_cmdTime = value * 0.01f / vmax;
     m_busy = true;
-    m_pathTraced << "tr " + QString::number(value);
+    if (m_tracePath)
+        m_pathTraced << "tr " + QString::number(value);
 }
 
 void RobotModel::backward(float value)
@@ -164,7 +165,8 @@ void RobotModel::backward(float value)
     m_wt = 0;
     m_cmdTime = value * 0.01f / vmax;
     m_busy = true;
-    m_pathTraced << "tr " + QString::number(-value);
+    if (m_tracePath)
+        m_pathTraced << "tr " + QString::number(-value);
 }
 
 void RobotModel::right(float value)
@@ -173,7 +175,8 @@ void RobotModel::right(float value)
     m_wt = -wmax;
     m_cmdTime = value * M_PI / 180 / wmax;
     m_busy = true;
-    m_pathTraced << "rot " + QString::number(-value);
+    if (m_tracePath)
+        m_pathTraced << "rot " + QString::number(-value);
 }
 
 void RobotModel::left(float value)
@@ -182,7 +185,8 @@ void RobotModel::left(float value)
     m_wt = wmax;
     m_cmdTime = value * M_PI / 180 / wmax;
     m_busy = true;
-    m_pathTraced << "rot " + QString::number(value);
+    if (m_tracePath)
+        m_pathTraced << "rot " + QString::number(value);
 }
 
 void RobotModel::penUp()
@@ -219,7 +223,8 @@ void RobotModel::arc(float radius, float degrees)
     }
     m_cmdTime = fabs(degrees * M_PI / 180 / m_wt);
     m_busy = true;
-    m_pathTraced << QString("arc %1 %2").arg(radius).arg(degrees);
+    if (m_tracePath)
+        m_pathTraced << QString("arc %1 %2").arg(radius).arg(degrees);
 }
 
 void RobotModel::clearScreen()

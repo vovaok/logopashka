@@ -256,6 +256,8 @@ void Scene::onTurtleCommand(QString s, QString arg)
                 for (int i=0; i<N; i++)
                 {
                     float dphi = a / N;
+                    if (r < 0)
+                        dphi = -dphi;
                     float du = r * sin(dphi);
                     float dv = r * (1 - cos(dphi));
                     float dx = du * cos(phi) - dv * sin(phi);
@@ -285,27 +287,27 @@ void Scene::onTurtleCommand(QString s, QString arg)
 
         cap << QVector3D(x, y, height);
 
-        int N = cap.size();
-        if (N >= 3)
-        {
-            QVector3D capc;
-            for (const QVector3D &v: cap)
-                capc += v;
-            capc /= N;
+//        int N = cap.size();
+//        if (N >= 3)
+//        {
+//            QVector3D capc;
+//            for (const QVector3D &v: cap)
+//                capc += v;
+//            capc /= N;
 
-            for (int i=0; i<N; i++)
-            {
-                QVector3D v1 = cap[i];
-                QVector3D v2 = cap[(i+1) % N];
-                float p1[3] = {v1.x(), v1.y(), v1.z()};
-                float p2[3] = {v2.x(), v2.y(), v2.z()};
-                float p3[3] = {capc.x(), capc.y(), capc.z()};
-                float n[3] = {0, 0, 1};
-                obj->addXYZRGBAPoint(p1, color, n);
-                obj->addXYZRGBAPoint(p2, color, n);
-                obj->addXYZRGBAPoint(p3, color, n);
-            }
-        }
+//            for (int i=0; i<N; i++)
+//            {
+//                QVector3D v1 = cap[i];
+//                QVector3D v2 = cap[(i+1) % N];
+//                float p1[3] = {v1.x(), v1.y(), v1.z()};
+//                float p2[3] = {v2.x(), v2.y(), v2.z()};
+//                float p3[3] = {capc.x(), capc.y(), capc.z()};
+//                float n[3] = {0, 0, 1};
+//                obj->addXYZRGBAPoint(p1, color, n);
+//                obj->addXYZRGBAPoint(p2, color, n);
+//                obj->addXYZRGBAPoint(p3, color, n);
+//            }
+//        }
 
         m_robot->resetPath();
     }
