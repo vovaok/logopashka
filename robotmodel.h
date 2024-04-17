@@ -67,6 +67,7 @@ private:
     Mesh3D *mWheelL, *mWheelR;
     Mesh3D *mActu;
     Mesh3D *m_star;
+    Mesh3D *m_payload;
     Primitive3D *mPen;
     DynamicTexture *mFace;
     DynamicTexture *mScreen;

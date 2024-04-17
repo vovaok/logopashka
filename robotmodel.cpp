@@ -76,6 +76,13 @@ RobotModel::RobotModel(Object3D *parent) :
 //    m_star->setVisible(false);
     m_star->setUniformScale(0);
 
+    m_payload = new Mesh3D(mBase);
+    m_payload->setVisible(false);
+    m_payload->loadModel(":/model/gift.wrl");
+    m_payload->mesh()->scaleUniform(10);
+    m_payload->updateModel();
+    m_payload->setPosition(5, 0, 7);
+
     m_magic = new PointCloud3D(scene()->root());
     m_magic->setPointSize(5);
     m_magic->setVisible(false);
@@ -255,6 +262,7 @@ void RobotModel::setColor(unsigned int rgb)
     }
     else
     {
+        m_rainbow = false;
         setPenColor(QColor::fromRgb(rgb));
     }
 }
@@ -458,6 +466,10 @@ void RobotModel::runCommand(const char *name, const char *arg)
         setStarVisible(false);
     else if (cmd == "doMagic" && m_starVisible)
         startMagic();
+    else if (cmd == "showPayload")
+        m_payload->setVisible(true);
+    else if (cmd == "hidePayload")
+        m_payload->setVisible(false);
     else
         emit commandIssued(cmd, a);
 }
@@ -497,6 +509,7 @@ void RobotModel::reset()
     setBalloonColor(Qt::cyan);
     m_cmdTime = 0;
     m_busy = false;
+    m_payload->setVisible(false);
 }
 
 void RobotModel::updateFace()

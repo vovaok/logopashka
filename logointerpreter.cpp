@@ -553,6 +553,14 @@ void LogoInterpreter::createProcedures()
         }
     };
 
+    m_proc["ВЗЯТЬОБЪЕКТ"] = [this]()
+    {
+        if (m_turtle)
+        {
+            m_turtle->runCommand("showPayload", "");
+        }
+    };
+
     m_proc["ПОВТОР"] = [this](QString count, QString list)
     {
         int cnt = count.toInt();

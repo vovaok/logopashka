@@ -9,5 +9,6 @@
         <file>model/wheel.wrl</file>
         <file>proc.txt</file>
         <file>model/star.wrl</file>
+        <file>model/gift.wrl</file>
     </qresource>
 </RCC>
